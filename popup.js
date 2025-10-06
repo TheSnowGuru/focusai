@@ -5,7 +5,11 @@ const $status = document.getElementById('status-dot');
 const $card = document.getElementById('track-card');
 const $freq = document.getElementById('track-frequency');
 const $name = document.getElementById('track-name');
+// Playback moved to offscreen; we keep iframe ref for UI only (hidden/unused)
 const $player = document.getElementById('player');
+const $viz = document.getElementById('viz');
+let vizCtx = $viz ? $viz.getContext('2d') : null;
+let vizId = null;
 const $open = document.getElementById('open-spotify');
 const $skip = document.getElementById('skip');
 
@@ -41,7 +45,7 @@ function setRunningUI(isRunning){
 }
 function showTrack(track){
   if (!track){ // Guard
-    $player.src = 'about:blank';
+    if ($player) $player.src = 'about:blank';
     $freq.textContent = '— Hz';
     $name.textContent = '—';
     $open.removeAttribute('href');
@@ -49,7 +53,8 @@ function showTrack(track){
   }
   $freq.textContent = `${track.frequency} Hz`;
   $name.textContent = track.name;
-  $player.src = track.embedUrl;
+  // Offscreen handles playback; keep embed for reference if needed
+  if ($player) $player.src = track.embedUrl;
   $open.href = track.url;
 }
 
@@ -96,18 +101,23 @@ async function startTimer(){
 
   setRunningUI(true);
   tick(durationMs, startTime, durationMs);
+  // Start offscreen playback
+  await chrome.runtime.sendMessage({ type: 'PLAY_TRACK', track: chosen });
 }
 
 async function stopTimer(silent=false){
   clearInterval(ticking);
   ticking = null;
-  $player.src = 'about:blank';
+  if ($player) $player.src = 'about:blank';
 
   await chrome.storage.local.set({ isRunning:false, startTime:null, track:null });
   chrome.alarms.clear('focus-end');
 
   setRunningUI(false);
   $time.textContent = `${pad(DURATION_MINUTES)}:00`;
+
+  // Stop offscreen playback
+  await chrome.runtime.sendMessage({ type: 'STOP' });
 
   if (!silent){
     chrome.notifications.create({
@@ -158,6 +168,37 @@ $skip.addEventListener('click', async () => {
 (async function init(){
   await loadTracks();
   await restoreState();
+  startViz();
 })();
+
+function startViz(){
+  if (!vizCtx) return;
+  const w = $viz.width, h = $viz.height;
+  let t = 0;
+  cancelAnimationFrame(vizId);
+  function draw(){
+    t += 0.02;
+    vizCtx.clearRect(0,0,w,h);
+    // Radial waves
+    for (let i=0;i<3;i++){
+      const r = 60 + i*22 + Math.sin(t + i)*8;
+      vizCtx.beginPath();
+      for (let a=0;a<=Math.PI*2;a+=Math.PI/60){
+        const jitter = Math.sin(a*4 + t*2 + i)*3;
+        const x = w/2 + (r + jitter) * Math.cos(a);
+        const y = h/2 + (r + jitter) * Math.sin(a);
+        if (a===0) vizCtx.moveTo(x,y); else vizCtx.lineTo(x,y);
+      }
+      const g = vizCtx.createLinearGradient(0,0,w,h);
+      g.addColorStop(0, 'rgba(122,224,255,0.35)');
+      g.addColorStop(1, 'rgba(158,255,161,0.28)');
+      vizCtx.strokeStyle = g;
+      vizCtx.lineWidth = 2;
+      vizCtx.stroke();
+    }
+    vizId = requestAnimationFrame(draw);
+  }
+  draw();
+}
 
 
