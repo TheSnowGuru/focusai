@@ -180,7 +180,7 @@ function startViz(){
   let t = 0;
   cancelAnimationFrame(vizId);
   function draw(){
-    t += 0.02;
+    t += 0.033; // ~30fps
     vizCtx.clearRect(0,0,w,h);
     // Radial waves
     for (let i=0;i<3;i++){
