@@ -18,6 +18,31 @@ async function openOrReuseSpotify(url){
   return spotifyTabId;
 }
 
+function toSpotifyUri(openUrl){
+  try {
+    const u = new URL(openUrl);
+    if (u.hostname !== 'open.spotify.com') return null;
+    const parts = u.pathname.split('/').filter(Boolean); // [type, id]
+    if (parts.length < 2) return null;
+    const type = parts[0];
+    const id = parts[1].split('?')[0];
+    const valid = new Set(['track','album','playlist','artist','episode','show']);
+    if (!valid.has(type)) return null;
+    return `spotify:${type}:${id}`;
+  } catch { return null; }
+}
+
+async function tryOpenDesktopApp(openUrl){
+  const uri = toSpotifyUri(openUrl);
+  if (!uri) return false;
+  try {
+    await chrome.tabs.create({ url: uri, active: false });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function appendAutoplay(url){
   try {
     const u = new URL(url);
@@ -72,7 +97,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message && message.type === 'PLAY_TRACK') {
       if (message.track && message.track.url){
-        await openOrReuseSpotify(message.track.url);
+        // Prefer desktop app via uri, fallback to web
+        const openedDesktop = await tryOpenDesktopApp(message.track.url);
+        if (!openedDesktop){
+          await openOrReuseSpotify(message.track.url);
+        }
       }
       keepAlive = true;
       chrome.alarms.clear('focusai-keepalive', () => {
