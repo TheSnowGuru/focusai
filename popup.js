@@ -12,6 +12,9 @@ const $duration = document.getElementById('duration');
 const $durationValue = document.getElementById('duration-value');
 const $open = document.getElementById('open-spotify');
 const $skip = document.getElementById('skip');
+const $viewTimer = document.getElementById('view-timer');
+const $viewLogin = document.getElementById('view-login');
+const $loginBtn = document.getElementById('login-spotify');
 // Tasks
 const $taskInput = document.getElementById('new-task');
 const $taskList = document.getElementById('task-list');
@@ -80,6 +83,9 @@ async function restoreState(){
   };
   const state = await chrome.storage.local.get(defaults);
   const { startTime, durationMs, isRunning, track } = state;
+
+  // Check auth status and toggle views
+  await ensureAuthView();
 
   if (isRunning && startTime){
     const elapsed = Date.now() - startTime;
@@ -172,9 +178,9 @@ $bubble.addEventListener('click', async () => {
 });
 
 $skip.addEventListener('click', async () => {
-  const { isRunning, track: current } = await chrome.storage.local.get({ isRunning:false, track:null });
+  const { isRunning } = await chrome.storage.local.get({ isRunning:false });
   if (!isRunning) return;
-  const t = getNextTrack(current) || pickRandomTrack();
+  const t = pickRandomTrack();
   await chrome.storage.local.set({ track: t });
   showTrack(t);
 });
@@ -184,6 +190,7 @@ $skip.addEventListener('click', async () => {
   await restoreState();
   await initDurationSelector();
   await initTasks();
+  initAuthHandlers();
 })();
 
 
@@ -324,6 +331,60 @@ function celebrate(){
     $confetti.appendChild(el);
     setTimeout(() => el.remove(), 1300);
   }
+}
+
+function initAuthHandlers(){
+  if ($loginBtn){
+    $loginBtn.addEventListener('click', async () => {
+      try {
+        await loginWithSpotify();
+      } catch (e) {
+        // fallback: ask background (in case of policies)
+        chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' });
+      }
+    });
+  }
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.type === 'LOGIN_RESULT'){
+      ensureAuthView();
+    }
+    if (msg && msg.type === 'AUTH_STATUS'){
+      toggleViews(msg.ok);
+    }
+  });
+}
+
+async function ensureAuthView(){
+  const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
+  const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
+  toggleViews(ok);
+}
+
+function toggleViews(isAuthed){
+  if ($viewLogin && $viewTimer){
+    $viewLogin.classList.toggle('hidden', !!isAuthed);
+    $viewTimer.classList.toggle('hidden', !isAuthed);
+  }
+}
+
+async function loginWithSpotify(){
+  const clientId = '13b4d04efb374d83892efa41680c4a3b';
+  const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/callback`;
+  const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'token',
+    redirect_uri: redirectUri,
+    scope: scopes.join(' ')
+  }).toString();
+  const url = `https://accounts.spotify.com/authorize?${params}`;
+  const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+  const hash = new URL(redirectUrl).hash.slice(1);
+  const data = new URLSearchParams(hash);
+  const access = data.get('access_token');
+  if (!access) throw new Error('No access token');
+  await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
+  toggleViews(true);
 }
 
 

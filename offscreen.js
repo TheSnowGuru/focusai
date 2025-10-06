@@ -1,86 +1,47 @@
-const CLIENT_ID = 'YOUR_SPOTIFY_CLIENT_ID'; // paste from dashboard
-const REDIRECT_URI = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
-const SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+let currentIframe = null;
 
-let token = null, deviceId = null, player = null;
+// OAuth handled by background.js via chrome.identity
 
-async function getToken() {
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    response_type: 'token',
-    redirect_uri: REDIRECT_URI,
-    scope: SCOPES.join(' ')
-  }).toString();
+// Offscreen document doesn't need to create itself
 
-  const url = `https://accounts.spotify.com/authorize?${params}`;
-  const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-  const hash = new URL(redirectUrl).hash.slice(1);
-  const data = new URLSearchParams(hash);
-  return data.get('access_token');
-}
-
-export async function ensureOffscreen(){
-  if (!(await chrome.offscreen.hasDocument?.())) {
-    await chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['AUDIO_PLAYBACK'],
-      justification: 'Play Spotify while popup is closed'
-    });
+function removeIframe(){
+  if (currentIframe && currentIframe.parentNode){
+    currentIframe.parentNode.removeChild(currentIframe);
   }
+  currentIframe = null;
 }
 
-window.onSpotifyWebPlaybackSDKReady = async () => {
-  token = token || await getToken();
-  player = new Spotify.Player({
-    name: 'Focus Bubble Player',
-    getOAuthToken: cb => cb(token),
-    volume: 0.8
-  });
-
-  player.addListener('ready', ({ device_id }) => { deviceId = device_id; });
-  player.addListener('initialization_error', e => console.error(e));
-  player.addListener('authentication_error', e => console.error(e));
-  player.addListener('account_error', e => console.error(e));
-  await player.connect();
-};
-
-async function transferPlaybackHere(){
-  if (!token || !deviceId) return;
-  await fetch('https://api.spotify.com/v1/me/player', {
-    method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ device_ids: [deviceId], play: true })
-  });
+function playTrack(track){
+  removeIframe();
+  if (!track || !track.url) return;
+  const id = (track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
+  const iframe = document.createElement('iframe');
+  iframe.width = '100%';
+  iframe.height = '80';
+  iframe.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+  iframe.style.border = '0';
+  iframe.src = `https://open.spotify.com/embed/track/${id}`;
+  document.body.appendChild(iframe);
+  currentIframe = iframe;
 }
 
-async function playTrack(trackUrl){
-  if (!token || !deviceId) return;
-  const id = (trackUrl.match(/track\/([A-Za-z0-9]+)/) || [])[1];
-  if (!id) return;
-  await transferPlaybackHere();
-  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-    method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uris: [`spotify:track:${id}`] })
-  });
-}
-
-async function pause(){
-  if (!token) return;
-  await fetch('https://api.spotify.com/v1/me/player/pause', {
-    method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-}
+function stop(){ removeIframe(); }
 
 chrome.runtime.onMessage.addListener(async (msg) => {
   if (msg.type === 'PLAY_SPOTIFY') {
-    await ensureOffscreen();
-    token = token || await getToken();
-    await playTrack(msg.track.url);
+    playTrack(msg.track);
   }
   if (msg.type === 'STOP_SPOTIFY') {
-    await pause();
+    stop();
+  }
+  if (msg.type === 'LOGIN_SPOTIFY'){
+    const access = await getToken();
+    chrome.runtime.sendMessage({ type: 'LOGIN_RESULT', ok: !!access });
+  }
+  if (msg.type === 'IS_AUTHENTICATED'){
+    const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
+    const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
+    chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
   }
 });
 

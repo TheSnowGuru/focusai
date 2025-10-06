@@ -13,7 +13,7 @@
       <div id="status-dot" class="dot stopped" title="stopped"></div>
     </div>
 
-    <div class="layout">
+    <div class="layout" id="view-timer">
       <div id="left">
         <div id="todos" class="card">
           <div class="row" style="justify-content:space-between">
@@ -56,6 +56,15 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div id="view-login" class="card hidden" style="margin-top:12px">
+      <div class="row" style="justify-content:space-between">
+        <div class="tasks-title">Login to Spotify</div>
+      </div>
+      <div class="muted" style="margin:6px 0 10px">Connect your Spotify Premium account to play full tracks.</div>
+      <button id="login-spotify" class="ghost">Login with Spotify</button>
+      <div class="muted" style="margin-top:8px;font-size:11px">You’ll be redirected to Spotify to approve access.</div>
     </div>
   </div>
 

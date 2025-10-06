@@ -1,4 +1,27 @@
 let keepAlive = false;
+// Spotify OAuth settings
+const SPOTIFY_CLIENT_ID = '13b4d04efb374d83892efa41680c4a3b';
+const SPOTIFY_REDIRECT_URI = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
+const SPOTIFY_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+
+async function spotifyAuth() {
+  const params = new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID,
+    response_type: 'token',
+    redirect_uri: SPOTIFY_REDIRECT_URI,
+    scope: SPOTIFY_SCOPES.join(' ')
+  }).toString();
+  const url = `https://accounts.spotify.com/authorize?${params}`;
+  const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+  const hash = new URL(redirectUrl).hash.slice(1);
+  const data = new URLSearchParams(hash);
+  const access = data.get('access_token');
+  if (access){
+    await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
+    return true;
+  }
+  return false;
+}
 
 async function ensureOffscreen(){
   const has = await chrome.offscreen.hasDocument?.().catch(() => false);
@@ -74,6 +97,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       keepAlive = false;
       chrome.runtime.sendMessage({ type: 'STOP_SPOTIFY' });
       sendResponse({ ok: true });
+    } else if (message && message.type === 'LOGIN_SPOTIFY') {
+      const ok = await spotifyAuth().catch(() => false);
+      chrome.runtime.sendMessage({ type: 'LOGIN_RESULT', ok });
+      sendResponse({ ok });
+    } else if (message && message.type === 'IS_AUTHENTICATED') {
+      const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
+      const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
+      chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
+      sendResponse({ ok });
     }
   })();
   return true; // keep channel open for async

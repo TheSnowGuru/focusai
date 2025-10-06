@@ -57,6 +57,19 @@
   }
   button.ghost:hover{border-color:#3a4766}
 
+  /* Spotify login button */
+  #login-spotify{
+    background:#1DB954;
+    color:#0a0a0a;
+    border-color:#1DB954;
+    font-weight:700;
+    padding:10px 14px;
+    font-size:14px;
+    border-radius:999px;
+  }
+  #login-spotify:hover{filter:brightness(1.05)}
+  #login-spotify:active{transform:translateY(1px)}
+
   /* Tasks */
   .tasks-title{font-size:14px;font-weight:700}
   #task-list{list-style:none;margin:0;padding:0}
