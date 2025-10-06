@@ -322,6 +322,15 @@ function startViz(){
 
 window.addEventListener('beforeunload', () => {
   if (vizId) cancelAnimationFrame(vizId);
+  // If timer is running and SDK would unload, hand off playback to background tab
+  (async () => {
+    try {
+      const { isRunning, track } = await chrome.storage.local.get({ isRunning:false, track:null });
+      if (isRunning && track) {
+        await chrome.runtime.sendMessage({ type: 'PLAY_TRACK', track });
+      }
+    } catch {}
+  })();
 });
 
 
