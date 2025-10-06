@@ -1,25 +1,25 @@
-const DURATION_MINUTES = 25; // Change here if you want 15/45 minutes
+let DURATION_MINUTES = 25; // user selectable 5-30
 const $time = document.getElementById('time');
 const $bubble = document.getElementById('bubble');
 const $status = document.getElementById('status-dot');
 const $card = document.getElementById('track-card');
 const $freq = document.getElementById('track-frequency');
 const $name = document.getElementById('track-name');
-// Playback moved to offscreen; we keep iframe ref for UI only (hidden/unused)
+// UI elements for progress and duration
 const $player = document.getElementById('player');
-const $viz = document.getElementById('viz');
-let vizCtx = $viz ? $viz.getContext('2d') : null;
-let vizId = null;
-const SEGMENTS = 60; // fewer segments to reduce CPU
-const angles = new Float32Array(SEGMENTS + 1);
-for (let i=0;i<=SEGMENTS;i++) angles[i] = (Math.PI*2/SEGMENTS)*i;
+const $progress = document.getElementById('progress');
+const $duration = document.getElementById('duration');
+const $durationValue = document.getElementById('duration-value');
 const $open = document.getElementById('open-spotify');
 const $skip = document.getElementById('skip');
+// Tasks
+const $taskInput = document.getElementById('new-task');
+const $taskList = document.getElementById('task-list');
+const $clearDone = document.getElementById('clear-done');
+const $confetti = document.getElementById('confetti');
 
 let tracks = [];
 let ticking = null;
-let sdkPlayer = null;
-let sdkDeviceId = null;
 
 async function loadTracks(){
   // Load tracks.json from the extension
@@ -42,6 +42,12 @@ function pickRandomTrack(){
   if (!tracks.length) return null;
   return tracks[Math.floor(Math.random()*tracks.length)];
 }
+function getNextTrack(current){
+  if (!tracks.length) return null;
+  const idx = current ? tracks.findIndex(t => t.url === current.url) : -1;
+  const nextIdx = (idx >= 0 ? idx + 1 : 0) % tracks.length;
+  return tracks[nextIdx];
+}
 function setRunningUI(isRunning){
   $status.classList.toggle('running', isRunning);
   $status.classList.toggle('stopped', !isRunning);
@@ -61,6 +67,8 @@ function showTrack(track){
   // Offscreen handles playback; keep embed for reference if needed
   if ($player) $player.src = track.embedUrl;
   $open.href = track.url;
+  // ask offscreen to play
+  chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track });
 }
 
 async function restoreState(){
@@ -106,11 +114,7 @@ async function startTimer(){
 
   setRunningUI(true);
   tick(durationMs, startTime, durationMs);
-  // Try SDK playback first; fallback to background tab
-  const ok = await playViaSdk(chosen).catch(() => false);
-  if (!ok) {
-    await chrome.runtime.sendMessage({ type: 'PLAY_TRACK', track: chosen });
-  }
+  // Playback handled by showTrack() via offscreen
 }
 
 async function stopTimer(silent=false){
@@ -123,9 +127,10 @@ async function stopTimer(silent=false){
 
   setRunningUI(false);
   $time.textContent = `${pad(DURATION_MINUTES)}:00`;
+  updateProgress(0);
 
   // Stop offscreen playback
-  await chrome.runtime.sendMessage({ type: 'STOP' });
+  chrome.runtime.sendMessage({ type: 'STOP_SPOTIFY' });
 
   if (!silent){
     chrome.notifications.create({
@@ -144,6 +149,7 @@ function tick(leftInitial, startTime, durationMs){
   ticking = setInterval(async () => {
     left = Math.max(0, durationMs - (Date.now() - startTime));
     $time.textContent = formatTimeLeft(left);
+    updateProgress(1 - (left / durationMs));
 
     if (left <= 0){
       clearInterval(ticking);
@@ -166,9 +172,9 @@ $bubble.addEventListener('click', async () => {
 });
 
 $skip.addEventListener('click', async () => {
-  const { isRunning } = await chrome.storage.local.get({ isRunning:false });
+  const { isRunning, track: current } = await chrome.storage.local.get({ isRunning:false, track:null });
   if (!isRunning) return;
-  const t = pickRandomTrack();
+  const t = getNextTrack(current) || pickRandomTrack();
   await chrome.storage.local.set({ track: t });
   showTrack(t);
 });
@@ -176,161 +182,129 @@ $skip.addEventListener('click', async () => {
 (async function init(){
   await loadTracks();
   await restoreState();
-  startViz();
-  await initSpotifySdk();
+  await initDurationSelector();
+  await initTasks();
 })();
 
-async function initSpotifySdk(){
-  // Load Spotify SDK dynamically
-  if (!window.Spotify) {
-    try {
-      const script = document.createElement('script');
-      script.src = 'https://sdk.scdn.co/spotify-player.js';
-      script.onload = () => initSpotifySdk();
-      document.head.appendChild(script);
-      return;
-    } catch (err) {
-      console.log('Spotify SDK not available, using fallback');
-      return;
-    }
-  }
-  
-  // Check if we have a valid token
-  const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ 
-    spotifyToken: '', 
-    tokenTimestamp: 0 
-  });
-  
-  // Token expires in 1 hour, refresh if needed
-  const now = Date.now();
-  const tokenAge = now - tokenTimestamp;
-  const TOKEN_EXPIRY = 3600000; // 1 hour in ms
-  
-  if (!spotifyToken || tokenAge > TOKEN_EXPIRY) {
-    // Need to authenticate
-    await authenticateSpotify();
-    return;
-  }
-  
-  sdkPlayer = new Spotify.Player({
-    name: 'FocusAI',
-    getOAuthToken: cb => cb(spotifyToken),
-    volume: 0.5
-  });
-  sdkPlayer.addListener('ready', ({ device_id }) => {
-    sdkDeviceId = device_id;
-  });
-  sdkPlayer.addListener('not_ready', () => {
-    sdkDeviceId = null;
-  });
-  sdkPlayer.addListener('authentication_error', () => {
-    // Token expired, re-authenticate
-    authenticateSpotify();
-  });
-  await sdkPlayer.connect();
-}
-
-async function authenticateSpotify(){
-  try {
-    await chrome.tabs.create({ 
-      url: chrome.runtime.getURL('oauth.html'),
-      active: true 
-    });
-  } catch (err) {
-    console.error('Failed to open auth page:', err);
-  }
-}
-
-async function playViaSdk(track){
-  if (!sdkDeviceId || !track) return false;
-  const uri = toSpotifyUri(track.url);
-  if (!uri) return false;
-  
-  const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
-  if (!spotifyToken) {
-    await authenticateSpotify();
-    return false;
-  }
-  
-  try {
-    const res = await fetch('https://api.spotify.com/v1/me/player/play?device_id='+encodeURIComponent(sdkDeviceId),{
-      method:'PUT',
-      headers:{
-        'Authorization': 'Bearer '+spotifyToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ uris: [uri] })
-    });
-    
-    if (res.status === 401) {
-      // Token expired, re-authenticate
-      await authenticateSpotify();
-      return false;
-    }
-    
-    return res.status === 204;
-  } catch { 
-    return false; 
-  }
-}
-
-function toSpotifyUri(openUrl){
-  try {
-    const u = new URL(openUrl);
-    if (u.hostname !== 'open.spotify.com') return null;
-    const parts = u.pathname.split('/').filter(Boolean);
-    if (parts.length < 2) return null;
-    const type = parts[0];
-    const id = parts[1].split('?')[0];
-    const valid = new Set(['track','album','playlist','artist','episode','show']);
-    if (!valid.has(type)) return null;
-    return `spotify:${type}:${id}`;
-  } catch { return null; }
-}
 
 function startViz(){
-  if (!vizCtx) return;
-  const w = $viz.width, h = $viz.height;
-  let t = 0;
-  cancelAnimationFrame(vizId);
-  function draw(){
-    t += 0.033; // ~30fps
-    vizCtx.clearRect(0,0,w,h);
-    // Radial waves
-    for (let i=0;i<3;i++){
-      const r = 60 + i*22 + Math.sin(t + i)*8;
-      vizCtx.beginPath();
-      for (let k=0;k<=SEGMENTS;k++){
-        const a = angles[k];
-        const jitter = Math.sin(k*4*(Math.PI/SEGMENTS) + t*2 + i)*3;
-        const ca = Math.cos(a), sa = Math.sin(a);
-        const x = w/2 + (r + jitter) * ca;
-        const y = h/2 + (r + jitter) * sa;
-        if (k===0) vizCtx.moveTo(x,y); else vizCtx.lineTo(x,y);
-      }
-      const g = vizCtx.createLinearGradient(0,0,w,h);
-      g.addColorStop(0, 'rgba(122,224,255,0.35)');
-      g.addColorStop(1, 'rgba(158,255,161,0.28)');
-      vizCtx.strokeStyle = g;
-      vizCtx.lineWidth = 2;
-      vizCtx.stroke();
-    }
-    vizId = requestAnimationFrame(draw);
-  }
-  draw();
+  // removed
 }
 
 window.addEventListener('beforeunload', () => {
-  if (vizId) cancelAnimationFrame(vizId);
-  // If timer is running and SDK would unload, hand off playback to background tab
+  // If timer is running, hand off playback to offscreen
   (async () => {
     try {
       const { isRunning, track } = await chrome.storage.local.get({ isRunning:false, track:null });
       if (isRunning && track) {
-        await chrome.runtime.sendMessage({ type: 'PLAY_TRACK', track });
+        chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track });
       }
     } catch {}
   })();
 });
+function updateProgress(ratio){
+  if (!$progress) return;
+  const deg = Math.max(0, Math.min(1, ratio)) * 360;
+  $progress.style.background = `conic-gradient(var(--accent) ${deg}deg, rgba(255,255,255,0.08) 0deg)`;
+}
+
+async function initDurationSelector(){
+  if (!$duration) return;
+  const { durationMs } = await chrome.storage.local.get({ durationMs: DURATION_MINUTES*60*1000 });
+  const minutes = Math.round((durationMs/60000));
+  DURATION_MINUTES = Math.max(5, Math.min(30, minutes - (minutes % 5) || minutes));
+  $duration.value = String(DURATION_MINUTES);
+  $durationValue.textContent = String(DURATION_MINUTES);
+  $duration.addEventListener('input', () => {
+    $durationValue.textContent = $duration.value;
+  });
+  $duration.addEventListener('change', async () => {
+    DURATION_MINUTES = parseInt($duration.value, 10);
+    const { isRunning, startTime } = await chrome.storage.local.get({ isRunning:false, startTime:null });
+    const durationMsNew = DURATION_MINUTES*60*1000;
+    await chrome.storage.local.set({ durationMs: durationMsNew });
+    if (isRunning && startTime){
+      // Restart countdown with new duration from now
+      await startTimer();
+    } else {
+      $time.textContent = `${pad(DURATION_MINUTES)}:00`;
+      updateProgress(0);
+    }
+  });
+}
+
+function renderTasks(items){
+  $taskList.innerHTML = '';
+  for (const it of items){
+    const li = document.createElement('li');
+    if (it.done) li.classList.add('done');
+    const check = document.createElement('div');
+    check.className = 'check';
+    check.innerHTML = it.done ? '✓' : '';
+    check.addEventListener('click', async () => {
+      it.done = !it.done;
+      if (it.done) {
+        celebrate();
+      }
+      await saveTasks(items);
+      renderTasks(items);
+    });
+    const span = document.createElement('div');
+    span.className = 'task';
+    span.textContent = it.text;
+    const del = document.createElement('button');
+    del.className = 'ghost';
+    del.textContent = 'Delete';
+    del.addEventListener('click', async () => {
+      const idx = items.indexOf(it);
+      if (idx >= 0) items.splice(idx,1);
+      await saveTasks(items);
+      renderTasks(items);
+    });
+    li.appendChild(check);
+    li.appendChild(span);
+    li.appendChild(del);
+    $taskList.appendChild(li);
+  }
+}
+
+async function saveTasks(items){
+  await chrome.storage.local.set({ tasks: items });
+}
+
+async function initTasks(){
+  const { tasks } = await chrome.storage.local.get({ tasks: [] });
+  const items = Array.isArray(tasks) ? tasks : [];
+  renderTasks(items);
+  $taskInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter'){
+      const text = $taskInput.value.trim();
+      if (!text) return;
+      items.push({ text, done:false });
+      $taskInput.value = '';
+      await saveTasks(items);
+      renderTasks(items);
+    }
+  });
+  $clearDone.addEventListener('click', async () => {
+    for (let i=items.length-1;i>=0;i--){ if (items[i].done) items.splice(i,1); }
+    await saveTasks(items);
+    renderTasks(items);
+  });
+}
+
+function celebrate(){
+  if (!$confetti) return;
+  // Animated confetti burst
+  const emojis = ['✨','🎉','✅','🌟','💫'];
+  for (let i=0;i<5;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    el.textContent = emojis[i % emojis.length];
+    el.style.setProperty('--dx', `${(i-2)*10}px`);
+    $confetti.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+}
 
 

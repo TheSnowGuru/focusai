@@ -1,21 +1,13 @@
-let spotifyTabId = null;
-let lastTrackUrl = null;
 let keepAlive = false;
 
-async function openOrReuseSpotify(url){
-  lastTrackUrl = url;
-  // Try to find an existing open.spotify.com tab first
-  const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
-  if (tabs && tabs.length){
-    spotifyTabId = tabs[0].id;
-    await chrome.tabs.update(spotifyTabId, { active: false, url: appendAutoplay(url) });
-    await armPlaybackOnReady(spotifyTabId);
-    return spotifyTabId;
-  }
-  const created = await chrome.tabs.create({ url: appendAutoplay(url), active: false, pinned: true });
-  spotifyTabId = created.id;
-  await armPlaybackOnReady(spotifyTabId);
-  return spotifyTabId;
+async function ensureOffscreen(){
+  const has = await chrome.offscreen.hasDocument?.().catch(() => false);
+  if (has) return;
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK],
+    justification: 'Play Spotify embed while popup closed'
+  });
 }
 
 function toSpotifyUri(openUrl){
@@ -32,16 +24,7 @@ function toSpotifyUri(openUrl){
   } catch { return null; }
 }
 
-async function tryOpenDesktopApp(openUrl){
-  const uri = toSpotifyUri(openUrl);
-  if (!uri) return false;
-  try {
-    await chrome.tabs.create({ url: uri, active: false });
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Do not open desktop app. We always use offscreen iframe or SDK from popup.
 
 function appendAutoplay(url){
   try {
@@ -53,20 +36,7 @@ function appendAutoplay(url){
   }
 }
 
-async function armPlaybackOnReady(tabId){
-  // When the tab finishes loading, try to click play
-  const handler = async (id, info, tab) => {
-    if (id !== tabId) return;
-    if (info.status === 'complete'){
-      try {
-        await clickPlay(tabId);
-      } catch {}
-    }
-  };
-  chrome.tabs.onUpdated.addListener(handler);
-  // Remove listener after 20s to avoid leaks
-  setTimeout(() => chrome.tabs.onUpdated.removeListener(handler), 20000);
-}
+// No longer manipulating tabs.
 
 async function clickPlay(tabId){
   try {
@@ -88,33 +58,21 @@ async function clickPlay(tabId){
 }
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'focusai-keepalive' && keepAlive && spotifyTabId != null){
-    await clickPlay(spotifyTabId);
-  }
+  // Left in case we need periodic checks later
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
-    if (message && message.type === 'PLAY_TRACK') {
-      if (message.track && message.track.url){
-        // Prefer desktop app via uri, fallback to web
-        const openedDesktop = await tryOpenDesktopApp(message.track.url);
-        if (!openedDesktop){
-          await openOrReuseSpotify(message.track.url);
-        }
+    if (message && message.type === 'PLAY_SPOTIFY') {
+      if (message.track){
+        await ensureOffscreen();
+        chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track: message.track });
       }
       keepAlive = true;
-      chrome.alarms.clear('focusai-keepalive', () => {
-        chrome.alarms.create('focusai-keepalive', { periodInMinutes: 0.5 });
-      });
       sendResponse({ ok: true });
-    } else if (message && message.type === 'STOP') {
-      if (spotifyTabId != null){
-        try { await chrome.tabs.remove(spotifyTabId); } catch (e) {}
-        spotifyTabId = null;
-      }
+    } else if (message && message.type === 'STOP_SPOTIFY') {
       keepAlive = false;
-      chrome.alarms.clear('focusai-keepalive');
+      chrome.runtime.sendMessage({ type: 'STOP_SPOTIFY' });
       sendResponse({ ok: true });
     }
   })();
