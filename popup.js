@@ -1,4 +1,4 @@
-const DURATION_MINUTES = 25; // שנה כאן אם תרצה 15/45 דקות
+const DURATION_MINUTES = 25; // Change here if you want 15/45 minutes
 const $time = document.getElementById('time');
 const $bubble = document.getElementById('bubble');
 const $status = document.getElementById('status-dot');
@@ -13,7 +13,7 @@ let tracks = [];
 let ticking = null;
 
 async function loadTracks(){
-  // טוען את tracks.json מתוך ההרחבה
+  // Load tracks.json from the extension
   const res = await fetch(chrome.runtime.getURL('tracks.json'));
   tracks = await res.json();
   if (!Array.isArray(tracks) || tracks.length === 0) {
@@ -40,7 +40,7 @@ function setRunningUI(isRunning){
   $bubble.setAttribute('aria-pressed', String(isRunning));
 }
 function showTrack(track){
-  if (!track){ // מגן
+  if (!track){ // Guard
     $player.src = 'about:blank';
     $freq.textContent = '— Hz';
     $name.textContent = '—';
@@ -89,7 +89,7 @@ async function startTimer(){
   const startTime = Date.now();
   await chrome.storage.local.set({ startTime, durationMs, isRunning: true, track: chosen });
 
-  // יוצר אזעקה לסיום — נשתמש להתראה
+  // Create an alarm for the end — used for notification
   chrome.alarms.clear('focus-end', () => {
     chrome.alarms.create('focus-end', { when: startTime + durationMs });
   });
@@ -113,7 +113,7 @@ async function stopTimer(silent=false){
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
-      title: 'Focus Bubble',
+      title: 'FocusAI',
       message: 'Timer stopped.'
     });
   }
@@ -135,8 +135,8 @@ function tick(leftInitial, startTime, durationMs){
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: 'Time’s up!',
-        message: 'Nice grind. Take 5–10 and come back 💪'
+        title: 'FocusAI',
+        message: 'Time’s up! Great work. Take 5–10 and come back 💪'
       });
     }
   }, 250);
