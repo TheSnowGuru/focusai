@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Focus Bubble</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1>Focus Bubble</h1>
+      <div id="status-dot" class="dot stopped" title="stopped"></div>
+    </div>
+
+    <div class="bubble-wrap">
+      <button id="bubble" aria-label="Start/Stop Focus">
+        <span id="time">25:00</span>
+      </button>
+      <div id="subtext">click to start • click again to stop</div>
+    </div>
+
+    <div id="track-card" class="card hidden">
+      <div class="row">
+        <div class="pill" id="track-frequency">— Hz</div>
+        <div id="track-name">—</div>
+      </div>
+      <iframe id="player" style="border-radius:12px" width="100%" height="80"
+        frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy"></iframe>
+      <div class="row meta">
+        <a id="open-spotify" target="_blank" rel="noopener">Open in Spotify</a>
+        <button id="skip" class="ghost">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
