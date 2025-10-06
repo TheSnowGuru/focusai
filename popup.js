@@ -181,7 +181,19 @@ $skip.addEventListener('click', async () => {
 })();
 
 async function initSpotifySdk(){
-  if (!window.Spotify) return;
+  // Load Spotify SDK dynamically
+  if (!window.Spotify) {
+    try {
+      const script = document.createElement('script');
+      script.src = 'https://sdk.scdn.co/spotify-player.js';
+      script.onload = () => initSpotifySdk();
+      document.head.appendChild(script);
+      return;
+    } catch (err) {
+      console.log('Spotify SDK not available, using fallback');
+      return;
+    }
+  }
   
   // Check if we have a valid token
   const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ 
