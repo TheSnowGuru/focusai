@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Spotify Auth - FocusAI</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #1db954; color: white; }
+    .container { max-width: 400px; margin: 0 auto; }
+    .success { background: #1ed760; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .error { background: #e22134; padding: 20px; border-radius: 8px; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 FocusAI</h1>
+    <div id="status">Connecting to Spotify...</div>
+  </div>
+  <script>
+    const CLIENT_ID = '13b4d04efb374d83892efa41680c4a3b';
+    const REDIRECT_URI = chrome.identity.getRedirectURL();
+    
+    async function handleAuth() {
+      try {
+        const urlParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = urlParams.get('access_token');
+        const error = urlParams.get('error');
+        
+        if (error) {
+          document.getElementById('status').innerHTML = 
+            '<div class="error">Authentication failed: ' + error + '</div>';
+          return;
+        }
+        
+        if (accessToken) {
+          // Store token and close window
+          await chrome.storage.local.set({ 
+            spotifyToken: accessToken,
+            tokenTimestamp: Date.now()
+          });
+          
+          document.getElementById('status').innerHTML = 
+            '<div class="success">✅ Successfully connected to Spotify!<br>You can close this window.</div>';
+          
+          // Close after 2 seconds
+          setTimeout(() => {
+            window.close();
+          }, 2000);
+        } else {
+          // Start OAuth flow
+          const scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+          const authUrl = `https://accounts.spotify.com/authorize?` +
+            `client_id=${CLIENT_ID}&` +
+            `response_type=token&` +
+            `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+            `scope=${encodeURIComponent(scopes)}`;
+          
+          chrome.identity.launchWebAuthFlow({
+            url: authUrl,
+            interactive: true
+          }, (responseUrl) => {
+            if (chrome.runtime.lastError) {
+              document.getElementById('status').innerHTML = 
+                '<div class="error">Authentication failed: ' + chrome.runtime.lastError.message + '</div>';
+              return;
+            }
+            
+            // Parse response
+            const url = new URL(responseUrl);
+            const hash = url.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            const token = params.get('access_token');
+            
+            if (token) {
+              handleToken(token);
+            } else {
+              document.getElementById('status').innerHTML = 
+                '<div class="error">No access token received</div>';
+            }
+          });
+        }
+      } catch (err) {
+        document.getElementById('status').innerHTML = 
+          '<div class="error">Error: ' + err.message + '</div>';
+      }
+    }
+    
+    async function handleToken(token) {
+      await chrome.storage.local.set({ 
+        spotifyToken: token,
+        tokenTimestamp: Date.now()
+      });
+      
+      document.getElementById('status').innerHTML = 
+        '<div class="success">✅ Successfully connected to Spotify!<br>You can close this window.</div>';
+      
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    }
+    
+    // Start auth flow when page loads
+    handleAuth();
+  </script>
+</body>
+</html>

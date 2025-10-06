@@ -7,10 +7,11 @@
     "default_title": "FocusAI",
     "default_popup": "popup.html"
   },
-  "permissions": ["alarms", "notifications", "storage", "offscreen", "tabs", "scripting"],
+  "permissions": ["alarms", "notifications", "storage", "offscreen", "tabs", "scripting", "identity"],
   "host_permissions": [
     "https://open.spotify.com/*",
-    "https://api.spotify.com/*"
+    "https://api.spotify.com/*",
+    "https://accounts.spotify.com/*"
   ],
   "background": {
     "service_worker": "background.js"

@@ -181,9 +181,25 @@ $skip.addEventListener('click', async () => {
 })();
 
 async function initSpotifySdk(){
-  // read token (user must store a valid Premium token)
-  const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
-  if (!window.Spotify || !spotifyToken) return;
+  if (!window.Spotify) return;
+  
+  // Check if we have a valid token
+  const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ 
+    spotifyToken: '', 
+    tokenTimestamp: 0 
+  });
+  
+  // Token expires in 1 hour, refresh if needed
+  const now = Date.now();
+  const tokenAge = now - tokenTimestamp;
+  const TOKEN_EXPIRY = 3600000; // 1 hour in ms
+  
+  if (!spotifyToken || tokenAge > TOKEN_EXPIRY) {
+    // Need to authenticate
+    await authenticateSpotify();
+    return;
+  }
+  
   sdkPlayer = new Spotify.Player({
     name: 'FocusAI',
     getOAuthToken: cb => cb(spotifyToken),
@@ -195,15 +211,35 @@ async function initSpotifySdk(){
   sdkPlayer.addListener('not_ready', () => {
     sdkDeviceId = null;
   });
+  sdkPlayer.addListener('authentication_error', () => {
+    // Token expired, re-authenticate
+    authenticateSpotify();
+  });
   await sdkPlayer.connect();
+}
+
+async function authenticateSpotify(){
+  try {
+    await chrome.tabs.create({ 
+      url: chrome.runtime.getURL('oauth.html'),
+      active: true 
+    });
+  } catch (err) {
+    console.error('Failed to open auth page:', err);
+  }
 }
 
 async function playViaSdk(track){
   if (!sdkDeviceId || !track) return false;
   const uri = toSpotifyUri(track.url);
   if (!uri) return false;
+  
   const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
-  if (!spotifyToken) return false;
+  if (!spotifyToken) {
+    await authenticateSpotify();
+    return false;
+  }
+  
   try {
     const res = await fetch('https://api.spotify.com/v1/me/player/play?device_id='+encodeURIComponent(sdkDeviceId),{
       method:'PUT',
@@ -213,8 +249,17 @@ async function playViaSdk(track){
       },
       body: JSON.stringify({ uris: [uri] })
     });
+    
+    if (res.status === 401) {
+      // Token expired, re-authenticate
+      await authenticateSpotify();
+      return false;
+    }
+    
     return res.status === 204;
-  } catch { return false; }
+  } catch { 
+    return false; 
+  }
 }
 
 function toSpotifyUri(openUrl){
