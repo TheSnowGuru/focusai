@@ -10,6 +10,9 @@ const $player = document.getElementById('player');
 const $viz = document.getElementById('viz');
 let vizCtx = $viz ? $viz.getContext('2d') : null;
 let vizId = null;
+const SEGMENTS = 60; // fewer segments to reduce CPU
+const angles = new Float32Array(SEGMENTS + 1);
+for (let i=0;i<=SEGMENTS;i++) angles[i] = (Math.PI*2/SEGMENTS)*i;
 const $open = document.getElementById('open-spotify');
 const $skip = document.getElementById('skip');
 
@@ -183,11 +186,13 @@ function startViz(){
     for (let i=0;i<3;i++){
       const r = 60 + i*22 + Math.sin(t + i)*8;
       vizCtx.beginPath();
-      for (let a=0;a<=Math.PI*2;a+=Math.PI/60){
-        const jitter = Math.sin(a*4 + t*2 + i)*3;
-        const x = w/2 + (r + jitter) * Math.cos(a);
-        const y = h/2 + (r + jitter) * Math.sin(a);
-        if (a===0) vizCtx.moveTo(x,y); else vizCtx.lineTo(x,y);
+      for (let k=0;k<=SEGMENTS;k++){
+        const a = angles[k];
+        const jitter = Math.sin(k*4*(Math.PI/SEGMENTS) + t*2 + i)*3;
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const x = w/2 + (r + jitter) * ca;
+        const y = h/2 + (r + jitter) * sa;
+        if (k===0) vizCtx.moveTo(x,y); else vizCtx.lineTo(x,y);
       }
       const g = vizCtx.createLinearGradient(0,0,w,h);
       g.addColorStop(0, 'rgba(122,224,255,0.35)');
@@ -200,5 +205,9 @@ function startViz(){
   }
   draw();
 }
+
+window.addEventListener('beforeunload', () => {
+  if (vizId) cancelAnimationFrame(vizId);
+});
 
 

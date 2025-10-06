@@ -1,41 +1,32 @@
-const OFFSCREEN_URL = chrome.runtime.getURL('offscreen.html');
+let spotifyTabId = null;
+let lastTrackUrl = null;
 
-async function ensureOffscreenDocument() {
-  if (!chrome.runtime.getContexts) {
-    // Fallback: attempt to create blindly
-    try {
-      await chrome.offscreen.createDocument({
-        url: OFFSCREEN_URL,
-        reasons: ['AUDIO_PLAYBACK'],
-        justification: 'Keep Spotify playback running while popup is closed'
-      });
-    } catch (e) {
-      // ignore if already exists
-    }
-    return;
+async function openOrReuseSpotify(url){
+  lastTrackUrl = url;
+  // Try to find an existing open.spotify.com tab first
+  const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
+  if (tabs && tabs.length){
+    spotifyTabId = tabs[0].id;
+    await chrome.tabs.update(spotifyTabId, { active: false, url });
+    return spotifyTabId;
   }
-  const contexts = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT'],
-    documentUrls: [OFFSCREEN_URL]
-  });
-  if (contexts.length === 0) {
-    await chrome.offscreen.createDocument({
-      url: OFFSCREEN_URL,
-      reasons: ['AUDIO_PLAYBACK'],
-      justification: 'Keep Spotify playback running while popup is closed'
-    });
-  }
+  const created = await chrome.tabs.create({ url, active: false });
+  spotifyTabId = created.id;
+  return spotifyTabId;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message && message.type === 'PLAY_TRACK') {
-      await ensureOffscreenDocument();
-      await chrome.runtime.sendMessage({ type: 'OFFSCREEN_PLAY', track: message.track });
+      if (message.track && message.track.url){
+        await openOrReuseSpotify(message.track.url);
+      }
       sendResponse({ ok: true });
     } else if (message && message.type === 'STOP') {
-      await ensureOffscreenDocument();
-      await chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP' });
+      if (spotifyTabId != null){
+        try { await chrome.tabs.remove(spotifyTabId); } catch (e) {}
+        spotifyTabId = null;
+      }
       sendResponse({ ok: true });
     }
   })();
