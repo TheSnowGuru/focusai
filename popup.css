@@ -77,7 +77,7 @@
   #task-list li:last-child{border-bottom:none}
   .task{flex:1;font-size:14px}
   .done .task{text-decoration:line-through;color:var(--muted)}
-  .check{width:22px;height:22px;border-radius:6px;border:1px solid #2b3550;display:inline-grid;place-items:center;cursor:pointer;transition:transform .12s ease;color:#ffc7c7}
+  .check{width:22px;height:22px;border-radius:6px;border:1px solid #2b3550;display:inline-grid;place-items:center;cursor:pointer;transition:transform .12s ease;color:#ffd28a}
   .check:active{transform:scale(.92)}
   .done .check{background:linear-gradient(180deg,#1f6a3a,#174c29);border-color:#1f6a3a;color:#caffd3}
   .muted{color:var(--muted);font-size:12px}

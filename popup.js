@@ -67,8 +67,8 @@ function showTrack(track){
   }
   $freq.textContent = `${track.frequency} Hz`;
   $name.textContent = track.name;
-  // Offscreen handles playback; keep embed for reference if needed
-  if ($player) $player.src = track.embedUrl;
+  // Playback happens in offscreen; keep popup iframe blank so closing popup won't stop audio
+  if ($player) $player.src = 'about:blank';
   $open.href = track.url;
   // ask offscreen to play
   chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track });
@@ -247,30 +247,45 @@ function renderTasks(items){
     if (it.done) li.classList.add('done');
     const check = document.createElement('div');
     check.className = 'check';
-    check.innerHTML = '✖';
-    check.title = 'Delete task';
+    check.innerHTML = '✏️';
+    check.title = 'Edit task';
     check.addEventListener('click', async () => {
-      const idx = items.indexOf(it);
-      if (idx >= 0) items.splice(idx,1);
-      await saveTasks(items);
-      renderTasks(items);
+      // Turn text into an input for editing
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = it.text;
+      input.style.flex = '1';
+      input.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter'){
+          const val = input.value.trim();
+          it.text = val || it.text;
+          await saveTasks(items);
+          renderTasks(items);
+        }
+      });
+      input.addEventListener('blur', async () => {
+        const val = input.value.trim();
+        it.text = val || it.text;
+        await saveTasks(items);
+        renderTasks(items);
+      });
+      li.replaceChild(input, span);
+      input.focus();
     });
     const span = document.createElement('div');
     span.className = 'task';
     span.textContent = it.text;
     const action = document.createElement('button');
     action.className = 'ghost';
-    action.textContent = it.done ? 'Done ✅' : 'Mark As Done ✅';
-    if (!it.done){
-      action.addEventListener('click', async () => {
-        it.done = true;
-        celebrate();
-        await saveTasks(items);
-        renderTasks(items);
-      });
-    } else {
-      action.disabled = true;
-    }
+    action.textContent = 'Mark As Done ✅';
+    action.addEventListener('click', async () => {
+      // Remove task upon completion
+      celebrate();
+      const idx = items.indexOf(it);
+      if (idx >= 0) items.splice(idx,1);
+      await saveTasks(items);
+      renderTasks(items);
+    });
     li.appendChild(check);
     li.appendChild(span);
     li.appendChild(action);
@@ -361,9 +376,8 @@ async function ensureAuthView(){
 }
 
 function toggleViews(isAuthed){
-  if ($viewLogin && $viewTimer){
+  if ($viewLogin){
     $viewLogin.classList.toggle('hidden', !!isAuthed);
-    $viewTimer.classList.toggle('hidden', !isAuthed);
   }
 }
 
