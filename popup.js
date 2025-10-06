@@ -18,6 +18,8 @@ const $skip = document.getElementById('skip');
 
 let tracks = [];
 let ticking = null;
+let sdkPlayer = null;
+let sdkDeviceId = null;
 
 async function loadTracks(){
   // Load tracks.json from the extension
@@ -104,8 +106,11 @@ async function startTimer(){
 
   setRunningUI(true);
   tick(durationMs, startTime, durationMs);
-  // Start offscreen playback
-  await chrome.runtime.sendMessage({ type: 'PLAY_TRACK', track: chosen });
+  // Try SDK playback first; fallback to background tab
+  const ok = await playViaSdk(chosen).catch(() => false);
+  if (!ok) {
+    await chrome.runtime.sendMessage({ type: 'PLAY_TRACK', track: chosen });
+  }
 }
 
 async function stopTimer(silent=false){
@@ -172,7 +177,59 @@ $skip.addEventListener('click', async () => {
   await loadTracks();
   await restoreState();
   startViz();
+  await initSpotifySdk();
 })();
+
+async function initSpotifySdk(){
+  // read token (user must store a valid Premium token)
+  const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
+  if (!window.Spotify || !spotifyToken) return;
+  sdkPlayer = new Spotify.Player({
+    name: 'FocusAI',
+    getOAuthToken: cb => cb(spotifyToken),
+    volume: 0.5
+  });
+  sdkPlayer.addListener('ready', ({ device_id }) => {
+    sdkDeviceId = device_id;
+  });
+  sdkPlayer.addListener('not_ready', () => {
+    sdkDeviceId = null;
+  });
+  await sdkPlayer.connect();
+}
+
+async function playViaSdk(track){
+  if (!sdkDeviceId || !track) return false;
+  const uri = toSpotifyUri(track.url);
+  if (!uri) return false;
+  const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
+  if (!spotifyToken) return false;
+  try {
+    const res = await fetch('https://api.spotify.com/v1/me/player/play?device_id='+encodeURIComponent(sdkDeviceId),{
+      method:'PUT',
+      headers:{
+        'Authorization': 'Bearer '+spotifyToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ uris: [uri] })
+    });
+    return res.status === 204;
+  } catch { return false; }
+}
+
+function toSpotifyUri(openUrl){
+  try {
+    const u = new URL(openUrl);
+    if (u.hostname !== 'open.spotify.com') return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    const type = parts[0];
+    const id = parts[1].split('?')[0];
+    const valid = new Set(['track','album','playlist','artist','episode','show']);
+    if (!valid.has(type)) return null;
+    return `spotify:${type}:${id}`;
+  } catch { return null; }
+}
 
 function startViz(){
   if (!vizCtx) return;
