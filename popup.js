@@ -240,30 +240,33 @@ function renderTasks(items){
     if (it.done) li.classList.add('done');
     const check = document.createElement('div');
     check.className = 'check';
-    check.innerHTML = it.done ? '✓' : '';
+    check.innerHTML = '✖';
+    check.title = 'Delete task';
     check.addEventListener('click', async () => {
-      it.done = !it.done;
-      if (it.done) {
-        celebrate();
-      }
+      const idx = items.indexOf(it);
+      if (idx >= 0) items.splice(idx,1);
       await saveTasks(items);
       renderTasks(items);
     });
     const span = document.createElement('div');
     span.className = 'task';
     span.textContent = it.text;
-    const del = document.createElement('button');
-    del.className = 'ghost';
-    del.textContent = 'Delete';
-    del.addEventListener('click', async () => {
-      const idx = items.indexOf(it);
-      if (idx >= 0) items.splice(idx,1);
-      await saveTasks(items);
-      renderTasks(items);
-    });
+    const action = document.createElement('button');
+    action.className = 'ghost';
+    action.textContent = it.done ? 'Done ✅' : 'Mark As Done ✅';
+    if (!it.done){
+      action.addEventListener('click', async () => {
+        it.done = true;
+        celebrate();
+        await saveTasks(items);
+        renderTasks(items);
+      });
+    } else {
+      action.disabled = true;
+    }
     li.appendChild(check);
     li.appendChild(span);
-    li.appendChild(del);
+    li.appendChild(action);
     $taskList.appendChild(li);
   }
 }
@@ -295,15 +298,31 @@ async function initTasks(){
 
 function celebrate(){
   if (!$confetti) return;
-  // Animated confetti burst
-  const emojis = ['✨','🎉','✅','🌟','💫'];
-  for (let i=0;i<5;i++){
+  // Bigger, noisier confetti burst
+  const glyphs = ['✨','🎉','✅','🌟','💫','🟡','🔵','🟣','🟢','🔺','🔶'];
+  const count = 14;
+  for (let i=0;i<count;i++){
     const el = document.createElement('div');
     el.className = 'confetti';
-    el.textContent = emojis[i % emojis.length];
-    el.style.setProperty('--dx', `${(i-2)*10}px`);
+    el.textContent = glyphs[Math.floor(Math.random()*glyphs.length)];
+    const dx = (Math.random()*140 - 70); // horizontal spread
+    const dy = (60 + Math.random()*70);  // vertical travel up
+    const rot = (Math.random()*60 - 30) + 'deg';
+    const size = 16 + Math.floor(Math.random()*8);
+    const jx = (Math.random()*10 - 5) + 'px';
+    const jx2 = (Math.random()*10 - 5) + 'px';
+    const jy = (Math.random()*6 - 3) + 'px';
+    const jy2 = (Math.random()*6 - 3) + 'px';
+    el.style.fontSize = size + 'px';
+    el.style.setProperty('--dx', dx + 'px');
+    el.style.setProperty('--dy', dy + 'px');
+    el.style.setProperty('--rot', rot);
+    el.style.setProperty('--jx', jx);
+    el.style.setProperty('--jx2', jx2);
+    el.style.setProperty('--jy', jy);
+    el.style.setProperty('--jy2', jy2);
     $confetti.appendChild(el);
-    setTimeout(() => el.remove(), 900);
+    setTimeout(() => el.remove(), 1300);
   }
 }
 
