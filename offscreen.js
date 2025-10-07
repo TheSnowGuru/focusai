@@ -1,4 +1,6 @@
 let currentIframe = null;
+let sdkPlayer = null;
+let sdkDeviceId = null;
 
 async function getStoredToken(){
   const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
@@ -64,9 +66,48 @@ async function playViaWebApi(track){
   }
 }
 
+async function ensureSdk(){
+  if (sdkPlayer) return true;
+  if (!window.Spotify) return false;
+  let token = await getStoredToken();
+  if (!token){
+    await new Promise((resolve) => {
+      const handler = (msg) => { if (msg && msg.type === 'LOGIN_RESULT'){ chrome.runtime.onMessage.removeListener(handler); resolve(); } };
+      chrome.runtime.onMessage.addListener(handler);
+      chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' });
+    });
+    token = await getStoredToken();
+    if (!token) return false;
+  }
+  sdkPlayer = new Spotify.Player({
+    name: 'Spotify on Chrome',
+    getOAuthToken: cb => cb(token),
+    volume: 0.7
+  });
+  sdkPlayer.addListener('ready', ({ device_id }) => { sdkDeviceId = device_id; });
+  sdkPlayer.addListener('not_ready', () => { sdkDeviceId = null; });
+  sdkPlayer.addListener('authentication_error', () => { sdkDeviceId = null; });
+  const connected = await sdkPlayer.connect();
+  return connected;
+}
+
 chrome.runtime.onMessage.addListener(async (msg) => {
   if (msg.type === 'PLAY_SPOTIFY') {
-    // Try Web API first for full playback; fallback to embed
+    // Prefer SDK device for selection in Connect, else Web API active device, fallback to embed
+    const sdkReady = await ensureSdk();
+    if (sdkReady && sdkDeviceId){
+      const token = await getStoredToken();
+      const id = (msg.track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
+      if (token && id){
+        try {
+          await fetch('https://api.spotify.com/v1/me/player', {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_ids: [sdkDeviceId], play: false })
+          });
+        } catch {}
+      }
+    }
     const ok = await playViaWebApi(msg.track);
     if (!ok) playTrack(msg.track);
   }
