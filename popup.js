@@ -464,7 +464,7 @@ function toggleViews(isAuthed){
 
 async function loginWithSpotify(){
   const clientId = '13b4d04efb374d83892efa41680c4a3b';
-  const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/callback`;
+  const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
   const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
   const params = new URLSearchParams({
     client_id: clientId,
@@ -473,13 +473,30 @@ async function loginWithSpotify(){
     scope: scopes.join(' ')
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
-  const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-  const hash = new URL(redirectUrl).hash.slice(1);
-  const data = new URLSearchParams(hash);
-  const access = data.get('access_token');
-  if (!access) throw new Error('No access token');
-  await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
-  toggleViews(true);
+  
+  console.log('Starting Spotify auth with URL:', url);
+  
+  try {
+    const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+    console.log('Received redirect URL:', redirectUrl);
+    
+    const hash = new URL(redirectUrl).hash.slice(1);
+    const data = new URLSearchParams(hash);
+    const access = data.get('access_token');
+    
+    if (!access) {
+      console.error('No access token in redirect');
+      throw new Error('No access token received from Spotify');
+    }
+    
+    console.log('Successfully received access token');
+    await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
+    toggleViews(true);
+  } catch (error) {
+    console.error('Login error:', error);
+    alert('Spotify login failed. Please try again. Error: ' + error.message);
+    throw error;
+  }
 }
 
 
