@@ -3,10 +3,16 @@ let sdkPlayer = null;
 let sdkDeviceId = null;
 
 async function getStoredToken(){
-  const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
-  if (!spotifyToken) return '';
-  const expired = (Date.now() - tokenTimestamp) >= 3600000;
-  return expired ? '' : spotifyToken;
+  try {
+    const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
+    const { spotifyToken, tokenTimestamp } = result;
+    if (!spotifyToken) return '';
+    const expired = (Date.now() - tokenTimestamp) >= 3600000;
+    return expired ? '' : spotifyToken;
+  } catch (e) {
+    console.error('Error getting stored token:', e);
+    return '';
+  }
 }
 
 // OAuth handled by background.js via chrome.identity
@@ -66,9 +72,8 @@ async function playViaWebApi(track){
   }
 }
 
-async function ensureSdk(){
-  if (sdkPlayer) return true;
-  if (!window.Spotify) return false;
+// Initialize SDK when ready
+window.onSpotifyWebPlaybackSDKReady = async () => {
   let token = await getStoredToken();
   if (!token){
     await new Promise((resolve) => {
@@ -77,46 +82,90 @@ async function ensureSdk(){
       chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' });
     });
     token = await getStoredToken();
-    if (!token) return false;
+    if (!token) return;
   }
+  
   sdkPlayer = new Spotify.Player({
     name: 'Spotify on Chrome',
-    getOAuthToken: cb => cb(token),
+    getOAuthToken: async cb => {
+      const t = await getStoredToken();
+      cb(t);
+    },
     volume: 0.7
   });
-  sdkPlayer.addListener('ready', ({ device_id }) => { sdkDeviceId = device_id; });
-  sdkPlayer.addListener('not_ready', () => { sdkDeviceId = null; });
-  sdkPlayer.addListener('authentication_error', () => { sdkDeviceId = null; });
+
+  // Error handling
+  sdkPlayer.addListener('initialization_error', ({ message }) => {
+    console.error('Failed to initialize', message);
+  });
+  sdkPlayer.addListener('authentication_error', ({ message }) => {
+    console.error('Failed to authenticate', message);
+    sdkDeviceId = null;
+  });
+  sdkPlayer.addListener('account_error', ({ message }) => {
+    console.error('Failed to validate Spotify account', message);
+  });
+  sdkPlayer.addListener('playback_error', ({ message }) => {
+    console.error('Failed to perform playback', message);
+  });
+
+  // Ready
+  sdkPlayer.addListener('ready', ({ device_id }) => {
+    console.log('Ready with Device ID', device_id);
+    sdkDeviceId = device_id;
+  });
+
+  // Not Ready
+  sdkPlayer.addListener('not_ready', ({ device_id }) => {
+    console.log('Device ID has gone offline', device_id);
+    sdkDeviceId = null;
+  });
+
+  // Connect to the player
   const connected = await sdkPlayer.connect();
-  return connected;
-}
+  if (connected) {
+    console.log('The Web Playback SDK successfully connected to Spotify!');
+  }
+};
 
 chrome.runtime.onMessage.addListener(async (msg) => {
   if (msg.type === 'PLAY_SPOTIFY') {
-    // Prefer SDK device for selection in Connect, else Web API active device, fallback to embed
-    const sdkReady = await ensureSdk();
-    if (sdkReady && sdkDeviceId){
+    // If SDK device is ready, transfer playback and play via Web API
+    if (sdkDeviceId && msg.track && msg.track.url){
       const token = await getStoredToken();
       const id = (msg.track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
       if (token && id){
         try {
+          // Transfer playback to SDK device
           await fetch('https://api.spotify.com/v1/me/player', {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_ids: [sdkDeviceId], play: false })
           });
-        } catch {}
+          // Play track on SDK device
+          const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(sdkDeviceId)}`, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uris: [`spotify:track:${id}`] })
+          });
+          if (res.status === 204) return; // Success
+        } catch (e) {
+          console.error('SDK playback failed', e);
+        }
       }
     }
+    // Fallback: try Web API on active device, then embed
     const ok = await playViaWebApi(msg.track);
     if (!ok) playTrack(msg.track);
   }
   if (msg.type === 'STOP_SPOTIFY') {
     stop();
+    if (sdkPlayer) {
+      sdkPlayer.pause();
+    }
   }
   if (msg.type === 'LOGIN_SPOTIFY'){
-    const access = await getToken();
-    chrome.runtime.sendMessage({ type: 'LOGIN_RESULT', ok: !!access });
+    // Handled by background
   }
   if (msg.type === 'IS_AUTHENTICATED'){
     const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });

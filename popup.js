@@ -84,8 +84,8 @@ async function restoreState(){
   const state = await chrome.storage.local.get(defaults);
   const { startTime, durationMs, isRunning, track } = state;
 
-  // Check auth status and toggle views
-  await ensureAuthView();
+  // Check for existing session first
+  await checkExistingSession();
 
   if (isRunning && startTime){
     const elapsed = Date.now() - startTime;
@@ -320,32 +320,96 @@ async function initTasks(){
 
 function celebrate(){
   if (!$confetti) return;
-  // Bigger, noisier confetti burst
-  const glyphs = ['✨','🎉','✅','🌟','💫','🟡','🔵','🟣','🟢','🔺','🔶'];
-  const count = 14;
-  for (let i=0;i<count;i++){
-    const el = document.createElement('div');
-    el.className = 'confetti';
-    el.textContent = glyphs[Math.floor(Math.random()*glyphs.length)];
-    const dx = (Math.random()*140 - 70); // horizontal spread
-    const dy = (60 + Math.random()*70);  // vertical travel up
-    const rot = (Math.random()*60 - 30) + 'deg';
-    const size = 16 + Math.floor(Math.random()*8);
-    const jx = (Math.random()*10 - 5) + 'px';
-    const jx2 = (Math.random()*10 - 5) + 'px';
-    const jy = (Math.random()*6 - 3) + 'px';
-    const jy2 = (Math.random()*6 - 3) + 'px';
-    el.style.fontSize = size + 'px';
-    el.style.setProperty('--dx', dx + 'px');
-    el.style.setProperty('--dy', dy + 'px');
-    el.style.setProperty('--rot', rot);
-    el.style.setProperty('--jx', jx);
-    el.style.setProperty('--jx2', jx2);
-    el.style.setProperty('--jy', jy);
-    el.style.setProperty('--jy2', jy2);
-    $confetti.appendChild(el);
-    setTimeout(() => el.remove(), 1300);
+  
+  // Play explosion sound with proper volume
+  try {
+    const url = chrome.runtime.getURL('explosion-01.mp3');
+    const audio = new Audio(url);
+    audio.volume = 0.8;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+  } catch (e) {
+    console.log('Audio error:', e);
   }
+  
+  // Create canvas for particle explosion
+  const canvas = document.createElement('canvas');
+  canvas.width = 300;
+  canvas.height = 300;
+  canvas.style.position = 'absolute';
+  canvas.style.left = '50%';
+  canvas.style.top = '-150px';
+  canvas.style.transform = 'translateX(-50%)';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = '1000';
+  $confetti.appendChild(canvas);
+  
+  const ctx = canvas.getContext('2d');
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  
+  // Create particles
+  const particles = [];
+  const particleCount = 80;
+  const colors = ['#7ae0ff', '#9effa1', '#ffd700', '#ff6b6b', '#ff9efb', '#fff'];
+  
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+    const velocity = 3 + Math.random() * 4;
+    particles.push({
+      x: centerX,
+      y: centerY,
+      vx: Math.cos(angle) * velocity,
+      vy: Math.sin(angle) * velocity,
+      radius: 2 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 1,
+      decay: 0.015 + Math.random() * 0.01
+    });
+  }
+  
+  // Animate explosion
+  let frame = 0;
+  function animate() {
+    frame++;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    let alive = 0;
+    particles.forEach(p => {
+      if (p.life <= 0) return;
+      alive++;
+      
+      // Update position
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.15; // gravity
+      p.vx *= 0.98; // air resistance
+      p.life -= p.decay;
+      
+      // Draw particle with glow
+      ctx.globalAlpha = p.life;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = p.color;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add trail
+      ctx.shadowBlur = 5;
+      ctx.globalAlpha = p.life * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x - p.vx * 0.5, p.y - p.vy * 0.5, p.radius * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    if (alive > 0 && frame < 120) {
+      requestAnimationFrame(animate);
+    } else {
+      canvas.remove();
+    }
+  }
+  
+  animate();
 }
 
 function initAuthHandlers(){
@@ -361,7 +425,7 @@ function initAuthHandlers(){
   }
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.type === 'LOGIN_RESULT'){
-      ensureAuthView();
+      checkExistingSession();
     }
     if (msg && msg.type === 'AUTH_STATUS'){
       toggleViews(msg.ok);
@@ -369,10 +433,27 @@ function initAuthHandlers(){
   });
 }
 
-async function ensureAuthView(){
+async function checkExistingSession(){
+  // Check if we have a valid token
   const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
-  const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
-  toggleViews(ok);
+  const hasToken = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
+  
+  if (hasToken) {
+    // Verify token is still valid by making a test API call
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me', {
+        headers: { 'Authorization': 'Bearer ' + spotifyToken }
+      });
+      if (res.ok) {
+        toggleViews(true);
+        return;
+      }
+    } catch (e) {
+      console.log('Token validation failed, need re-auth');
+    }
+  }
+  
+  toggleViews(false);
 }
 
 function toggleViews(isAuthed){

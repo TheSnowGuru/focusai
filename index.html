@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusAI - Healing Tracks</title>
+  <style>
+    :root {
+      --bg: #0e0f13;
+      --panel: #171923;
+      --text: #e8ecf3;
+      --muted: #a9b0c2;
+      --primary: #7ae0ff;
+      --accent: #9effa1;
+      --border: #232638;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+
+    .track-grid {
+      display: grid;
+      gap: 0.5rem;
+    }
+    
+    .copy-count {
+      background: var(--border);
+      color: var(--muted);
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .track-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .track-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .frequency-badge {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #0a0a0a;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      min-width: 70px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .track-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.15rem;
+      color: var(--text);
+    }
+
+    .track-artist {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .copy-btn:active {
+      transform: scale(0.95);
+    }
+
+    .copy-btn.copied {
+      background: var(--accent);
+      color: #0a0a0a;
+      border-color: var(--accent);
+    }
+
+    .stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .track-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .copy-btn {
+        width: 100%;
+      }
+
+      .stats {
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 FocusAI Healing Tracks</h1>
+    <p class="subtitle">Curated collection of healing frequencies for deep focus and relaxation</p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="total-tracks">0</div>
+        <div class="stat-label">Total Tracks</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="unique-frequencies">0</div>
+        <div class="stat-label">Unique Frequencies</div>
+      </div>
+    </div>
+
+    <div class="track-grid" id="track-list"></div>
+  </div>
+
+  <script>
+    // Load copy counts from localStorage
+    function getCopyCounts() {
+      const stored = localStorage.getItem('trackCopyCounts');
+      return stored ? JSON.parse(stored) : {};
+    }
+
+    function saveCopyCounts(counts) {
+      localStorage.setItem('trackCopyCounts', JSON.stringify(counts));
+    }
+
+    function incrementCopyCount(trackUrl) {
+      const counts = getCopyCounts();
+      counts[trackUrl] = (counts[trackUrl] || 0) + 1;
+      saveCopyCounts(counts);
+      return counts[trackUrl];
+    }
+
+    async function loadTracks() {
+      try {
+        const response = await fetch('tracks.json');
+        const tracks = await response.json();
+        const copyCounts = getCopyCounts();
+        
+        // Update stats
+        document.getElementById('total-tracks').textContent = tracks.length;
+        const uniqueFreqs = new Set(tracks.map(t => t.frequency)).size;
+        document.getElementById('unique-frequencies').textContent = uniqueFreqs;
+
+        // Render tracks
+        const container = document.getElementById('track-list');
+        tracks.forEach((track, index) => {
+          const card = document.createElement('div');
+          card.className = 'track-card';
+          const copyCount = copyCounts[track.url] || 0;
+          
+          card.innerHTML = `
+            <div class="frequency-badge">${track.frequency} Hz</div>
+            <div class="track-info">
+              <div class="track-name">${track.name}</div>
+              <div class="track-artist">${track.artist}</div>
+            </div>
+            <button class="copy-btn" data-url="${track.url}" data-index="${index}">
+              <span class="copy-text">Copy</span>
+              <span class="copy-count" data-count="${copyCount}">${copyCount}</span>
+            </button>
+          `;
+          
+          container.appendChild(card);
+        });
+
+        // Add copy functionality
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const button = e.target.closest('.copy-btn');
+            const url = button.dataset.url;
+            const countSpan = button.querySelector('.copy-count');
+            const textSpan = button.querySelector('.copy-text');
+            
+            try {
+              await navigator.clipboard.writeText(url);
+              const newCount = incrementCopyCount(url);
+              
+              // Update count display
+              countSpan.textContent = newCount;
+              countSpan.dataset.count = newCount;
+              
+              // Show feedback
+              textSpan.textContent = 'Copied!';
+              button.classList.add('copied');
+              
+              setTimeout(() => {
+                textSpan.textContent = 'Copy';
+                button.classList.remove('copied');
+              }, 1500);
+            } catch (err) {
+              console.error('Failed to copy:', err);
+              textSpan.textContent = 'Failed';
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Error loading tracks:', error);
+        document.getElementById('track-list').innerHTML = 
+          '<p style="color: var(--muted); text-align: center;">Failed to load tracks</p>';
+      }
+    }
+
+    loadTracks();
+  </script>
+</body>
+</html>
+
