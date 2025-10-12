@@ -66,13 +66,17 @@ function showTrack(track){
     $open.removeAttribute('href');
     return;
   }
+  console.log('🎵 showTrack called:', track.name, track.url);
   $freq.textContent = `${track.frequency} Hz`;
   $name.textContent = track.name;
   // Playback happens in offscreen; keep popup iframe blank so closing popup won't stop audio
   if ($player) $player.src = 'about:blank';
   $open.href = track.url;
   // ask offscreen to play
-  chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track });
+  console.log('📤 Sending PLAY_SPOTIFY message to background');
+  chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track }, (response) => {
+    console.log('📥 Response from background:', response);
+  });
 }
 
 async function restoreState(){

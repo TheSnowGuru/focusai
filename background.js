@@ -135,15 +135,23 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message && message.type === 'PLAY_SPOTIFY') {
+      console.log('🎧 Background received PLAY_SPOTIFY:', message.track?.name);
       if (message.track){
         await ensureOffscreen();
+        console.log('✅ Offscreen ensured');
+        
         // Get token and send it with the message
         const { spotifyToken } = await chrome.storage.local.get({ spotifyToken:'' });
+        console.log('🔑 Token retrieved:', spotifyToken ? 'Yes' : 'No');
+        
         chrome.runtime.sendMessage({ 
           type: 'PLAY_SPOTIFY', 
           track: message.track,
           token: spotifyToken 
-        }).catch(() => {});
+        }).catch((e) => {
+          console.error('❌ Error sending to offscreen:', e);
+        });
+        console.log('📤 Sent PLAY_SPOTIFY to offscreen with token');
       }
       keepAlive = true;
       sendResponse({ ok: true });
