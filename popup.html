@@ -8,71 +8,95 @@
 </head>
 <body>
   <div id="app">
+    <!-- Header -->
     <div class="header">
-      <h1>FocusAI</h1>
-      <button id="auth-btn" class="ghost" style="margin-left:auto;font-size:12px;padding:6px 12px">Login</button>
-      <div id="status-dot" class="dot stopped" title="stopped"></div>
+      <div class="header-left">
+        <img src="icons/icon16.png" alt="FocusAI" class="app-icon">
+        <div class="app-info">
+          <h1>FocusAI</h1>
+          <p class="tagline">Tidy, plan, and finish your tasks fast</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="timer-section">
+          <div class="timer-icon">⏳</div>
+          <div id="time">25:00</div>
+          <div class="timer-controls">
+            <button id="pause-btn" class="timer-btn">pause</button>
+            <button id="reset-btn" class="timer-btn">reset</button>
+          </div>
+        </div>
+        <button id="auth-btn" class="auth-btn">Login</button>
+      </div>
     </div>
 
+    <!-- Motivation Banner -->
+    <div id="motivation" class="motivation-banner hidden">
+      <div id="motivation-text"></div>
+    </div>
+
+    <!-- Main Timer View -->
     <div id="view-timer" class="hidden">
-      <div class="layout">
-        <div id="left">
-          <div id="todos" class="card">
-            <div class="row" style="justify-content:space-between">
-              <div class="tasks-title">Today's Most Important Tasks!</div>
-              <button id="clear-done" class="ghost">Clear done</button>
+      <div class="main-content">
+        <div class="task-section">
+          <div class="task-header">
+            <div class="task-title-section">
+              <h2>My Tasks</h2>
+              <div class="drag-hint" title="Drag tasks to reorder by importance">⋮⋮</div>
             </div>
-            <div class="row">
-              <input id="new-task" type="text" placeholder="Add a task and press Enter" style="flex:1" />
-            </div>
-            <ul id="task-list"></ul>
-            <div id="confetti" aria-hidden="true"></div>
-          </div>
-        </div>
-        <div id="right">
-          <div class="bubble-wrap">
-            <button id="bubble" aria-label="Start/Stop Focus">
-              <div id="progress" aria-hidden="true"></div>
-              <span id="time">25:00</span>
+            <button id="add-task-btn" class="primary-btn">
+              <span class="btn-icon">+</span>
+              Add Task
             </button>
-            <div id="subtext">click to start • click again to stop</div>
           </div>
-
-          <div class="controls row">
-            <label for="duration" class="muted">Minutes</label>
-            <input id="duration" type="range" min="5" max="30" step="5" value="25" />
-            <span id="duration-value">25</span>
-          </div>
-
-          <div id="track-card" class="card hidden">
-            <div class="row">
-              <div class="pill" id="track-frequency">— Hz</div>
-              <div id="track-name">—</div>
-            </div>
-            <iframe id="player" style="border-radius:12px" width="100%" height="80"
-              frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"></iframe>
-            <div class="row meta">
-              <a id="open-spotify" target="_blank" rel="noopener">Open in Spotify</a>
-              <button id="skip" class="ghost">Skip</button>
+          
+          <div class="search-section">
+            <div class="search-input">
+              <span class="search-icon">🔍</span>
+              <input id="search-tasks" type="text" placeholder="Search or filter tasks...">
             </div>
           </div>
+          
+          <div class="tasks-container">
+            <ul id="task-list"></ul>
+          </div>
+          
+          <div id="confetti" aria-hidden="true"></div>
         </div>
       </div>
     </div>
 
-    <div id="view-login" class="card" style="margin-top:12px">
-      <div class="row" style="justify-content:space-between">
-        <div class="tasks-title">Login to Spotify</div>
+    <!-- Bubble Overlay (appears when timer is active) -->
+    <div id="bubble-overlay" class="bubble-overlay hidden">
+      <div class="bubble-content">
+        <div id="progress"></div>
+        <button id="bubble">
+          <div id="bubble-time">25:00</div>
+        </button>
+        <div id="bubble-subtext">Focus Session</div>
+        
+        <div class="bubble-controls">
+          <div class="duration-pills" id="duration-pills"></div>
+          <div class="track-info">
+            <div id="track-info" class="muted">No track selected</div>
+            <button id="skip" class="ghost">Skip</button>
+          </div>
+          <iframe id="player" width="100%" height="80" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+        </div>
       </div>
-      <div class="muted" style="margin:6px 0 10px">Connect your Spotify Premium account to play full tracks.</div>
-      <button id="login-spotify" class="ghost">Login with Spotify</button>
-      <div class="muted" style="margin-top:8px;font-size:11px">You'll be redirected to Spotify to approve access.</div>
-      
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #232638">
-        <div class="muted" style="margin-bottom:6px;font-size:11px">Your Redirect URI for Spotify Dashboard:</div>
-        <div id="redirect-uri-display" style="background:#1d2332;padding:8px;border-radius:6px;font-size:11px;word-break:break-all;font-family:monospace;color:#7ae0ff"></div>
-        <button id="copy-redirect-uri" class="ghost" style="margin-top:6px;width:100%">Copy Redirect URI</button>
+    </div>
+
+    <!-- Login View -->
+    <div id="view-login" class="login-card">
+      <div class="login-content">
+        <h2>Login to Spotify</h2>
+        <p>Connect your Spotify account to play focus music during your sessions.</p>
+        <button id="login-spotify" class="spotify-btn">
+          Login with Spotify
+        </button>
+        <div class="redirect-info">
+          Redirect URI: <code id="redirect-uri"></code>
+        </div>
       </div>
     </div>
   </div>

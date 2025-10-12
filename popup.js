@@ -1,29 +1,44 @@
 let DURATION_MINUTES = 25; // user selectable 5-30
 const $time = document.getElementById('time');
 const $bubble = document.getElementById('bubble');
-const $status = document.getElementById('status-dot');
-const $card = document.getElementById('track-card');
-const $freq = document.getElementById('track-frequency');
-const $name = document.getElementById('track-name');
-// UI elements for progress and duration
+const $bubbleTime = document.getElementById('bubble-time');
 const $player = document.getElementById('player');
 const $progress = document.getElementById('progress');
-const $duration = document.getElementById('duration');
-const $durationValue = document.getElementById('duration-value');
-const $open = document.getElementById('open-spotify');
 const $skip = document.getElementById('skip');
 const $viewTimer = document.getElementById('view-timer');
 const $viewLogin = document.getElementById('view-login');
 const $loginBtn = document.getElementById('login-spotify');
 const $authBtn = document.getElementById('auth-btn');
+const $bubbleOverlay = document.getElementById('bubble-overlay');
+
 // Tasks
-const $taskInput = document.getElementById('new-task');
 const $taskList = document.getElementById('task-list');
-const $clearDone = document.getElementById('clear-done');
+const $addTaskBtn = document.getElementById('add-task-btn');
+const $searchTasks = document.getElementById('search-tasks');
 const $confetti = document.getElementById('confetti');
+
+// Timer controls
+const $pauseBtn = document.getElementById('pause-btn');
+const $resetBtn = document.getElementById('reset-btn');
+const $durationPills = document.getElementById('duration-pills');
+const $trackInfo = document.getElementById('track-info');
 
 let tracks = [];
 let ticking = null;
+
+// Motivational messages
+const motivationalMessages = [
+  "Get things done now",
+  "Focus on your tasks",
+  "Close your mobile",
+  "Deep work creates value",
+  "One task at a time",
+  "Eliminate distractions",
+  "Your future self will thank you",
+  "Progress over perfection",
+  "Stay in the zone",
+  "Make every minute count"
+];
 
 async function loadTracks(){
   // Load tracks.json from the extension
@@ -53,22 +68,29 @@ function getNextTrack(current){
   return tracks[nextIdx];
 }
 function setRunningUI(isRunning){
-  $status.classList.toggle('running', isRunning);
-  $status.classList.toggle('stopped', !isRunning);
-  $card.classList.toggle('hidden', !isRunning);
+  if ($bubbleOverlay) {
+    $bubbleOverlay.classList.toggle('hidden', !isRunning);
+  }
+  if ($bubble) {
   $bubble.setAttribute('aria-pressed', String(isRunning));
+  }
+  // Update pause button text
+  if ($pauseBtn) {
+    $pauseBtn.textContent = isRunning ? 'pause' : 'start';
+  }
+  // Update bubble time display
+  if ($bubbleTime && $time) {
+    $bubbleTime.textContent = $time.textContent;
+  }
 }
 function showTrack(track){
   if (!track){ // Guard
     if ($player) $player.src = 'about:blank';
-    $freq.textContent = '— Hz';
-    $name.textContent = '—';
-    $open.removeAttribute('href');
+    if ($trackInfo) $trackInfo.textContent = 'No track selected';
     return;
   }
   console.log('🎵 showTrack called:', track.name, track.url);
-  $freq.textContent = `${track.frequency} Hz`;
-  $name.textContent = track.name;
+  if ($trackInfo) $trackInfo.textContent = `${track.name} • ${track.frequency} Hz`;
   // Show the Spotify embed UI in the popup (visual only)
   try {
     const id = (track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
@@ -76,7 +98,6 @@ function showTrack(track){
       $player.src = `https://open.spotify.com/embed/track/${id}`;
     }
   } catch {}
-  $open.href = track.url;
   // ask offscreen to play
   console.log('📤 Sending PLAY_SPOTIFY message to background');
   chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track }, (response) => {
@@ -164,7 +185,9 @@ function tick(leftInitial, startTime, durationMs){
 
   ticking = setInterval(async () => {
     left = Math.max(0, durationMs - (Date.now() - startTime));
-    $time.textContent = formatTimeLeft(left);
+    const timeText = formatTimeLeft(left);
+    $time.textContent = timeText;
+    if ($bubbleTime) $bubbleTime.textContent = timeText;
     updateProgress(1 - (left / durationMs));
 
     if (left <= 0){
@@ -176,7 +199,7 @@ function tick(leftInitial, startTime, durationMs){
         type: 'basic',
         iconUrl: 'icons/icon128.png',
         title: 'FocusAI',
-        message: 'Time’s up! Great work. Take 5–10 and come back 💪'
+        message: 'Time's up! Great work. Take 5–10 and come back 💪'
       });
     }
   }, 250);
@@ -202,7 +225,102 @@ $skip.addEventListener('click', async () => {
   await initTasks();
   initAuthHandlers();
   initAuthButton();
+  initNewUIHandlers();
+  updateMotivation(); // Show initial motivation
 })();
+
+function initNewUIHandlers() {
+  // Add task button
+  if ($addTaskBtn) {
+    $addTaskBtn.addEventListener('click', () => {
+      const taskText = prompt('Enter task:');
+      if (taskText && taskText.trim()) {
+        addTask(taskText.trim());
+      }
+    });
+  }
+
+  // Search functionality
+  if ($searchTasks) {
+    $searchTasks.addEventListener('input', (e) => {
+      filterTasks(e.target.value);
+    });
+  }
+
+  // Pause/Reset buttons
+  if ($pauseBtn) {
+    $pauseBtn.addEventListener('click', () => {
+      if (ticking) {
+        stopTimer();
+      } else {
+        startTimer();
+      }
+    });
+  }
+
+  if ($resetBtn) {
+    $resetBtn.addEventListener('click', () => {
+      stopTimer();
+      $time.textContent = formatTimeLeft(DURATION_MINUTES * 60 * 1000);
+      updateProgress(0);
+    });
+  }
+
+  // Bubble overlay close
+  if ($bubbleOverlay) {
+    $bubbleOverlay.addEventListener('click', (e) => {
+      if (e.target === $bubbleOverlay) {
+        $bubbleOverlay.classList.add('hidden');
+      }
+    });
+  }
+}
+
+function addTask(text) {
+  // Get current tasks
+  chrome.storage.local.get({ tasks: [] }).then(({ tasks }) => {
+    const newTask = { text, done: false };
+    tasks.push(newTask);
+    saveTasks(tasks);
+    renderTasks(tasks);
+  });
+}
+
+function filterTasks(searchTerm) {
+  const tasks = Array.from($taskList.children);
+  tasks.forEach(task => {
+    const text = task.querySelector('.task-title').textContent.toLowerCase();
+    const matches = text.includes(searchTerm.toLowerCase());
+    task.style.display = matches ? 'flex' : 'none';
+  });
+}
+
+function updateMotivation() {
+  const $motivation = document.getElementById('motivation');
+  const $motivationText = document.getElementById('motivation-text');
+  
+  if (!$motivation || !$motivationText) return;
+  
+  // Check if user has tasks
+  const hasTasks = $taskList && $taskList.children.length > 0;
+  
+  if (!hasTasks) {
+    $motivationText.textContent = "Add your first task";
+    $motivation.classList.remove('hidden');
+  } else {
+    // Show random motivational message
+    const randomIndex = Math.floor(Math.random() * motivationalMessages.length);
+    $motivationText.textContent = motivationalMessages[randomIndex];
+    $motivation.classList.remove('hidden');
+  }
+}
+
+// Update motivation when popup is opened (visibility change)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    updateMotivation();
+  }
+});
 
 function initAuthButton() {
   if (!$authBtn) return;
@@ -252,85 +370,182 @@ function updateProgress(ratio){
 }
 
 async function initDurationSelector(){
-  if (!$duration) return;
+  if (!$durationPills) return;
   const { durationMs } = await chrome.storage.local.get({ durationMs: DURATION_MINUTES*60*1000 });
   const minutes = Math.round((durationMs/60000));
   DURATION_MINUTES = Math.max(5, Math.min(30, minutes - (minutes % 5) || minutes));
-  $duration.value = String(DURATION_MINUTES);
-  $durationValue.textContent = String(DURATION_MINUTES);
-  $duration.addEventListener('input', () => {
-    $durationValue.textContent = $duration.value;
-  });
-  $duration.addEventListener('change', async () => {
-    DURATION_MINUTES = parseInt($duration.value, 10);
-    const { isRunning, startTime } = await chrome.storage.local.get({ isRunning:false, startTime:null });
-    const durationMsNew = DURATION_MINUTES*60*1000;
-    await chrome.storage.local.set({ durationMs: durationMsNew });
-    if (isRunning && startTime){
-      // Restart countdown with new duration from now
-      await startTimer();
-    } else {
-      $time.textContent = `${pad(DURATION_MINUTES)}:00`;
-      updateProgress(0);
-    }
+  
+  // Create duration pills
+  const durations = [5, 10, 15, 20, 25, 30];
+  $durationPills.innerHTML = '';
+  
+  durations.forEach(min => {
+    const btn = document.createElement('button');
+    btn.className = `duration-btn ${min === DURATION_MINUTES ? 'active' : ''}`;
+    btn.textContent = `${min}m`;
+    btn.addEventListener('click', async () => {
+      DURATION_MINUTES = min;
+      // Update active state
+      $durationPills.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      const { isRunning, startTime } = await chrome.storage.local.get({ isRunning:false, startTime:null });
+      const durationMsNew = DURATION_MINUTES*60*1000;
+      await chrome.storage.local.set({ durationMs: durationMsNew });
+      
+      if (isRunning && startTime){
+        // Restart countdown with new duration from now
+        await startTimer();
+      } else {
+        $time.textContent = `${pad(DURATION_MINUTES)}:00`;
+        updateProgress(0);
+      }
+    });
+    $durationPills.appendChild(btn);
   });
 }
 
 function renderTasks(items){
+  if (!$taskList) return;
+  
   $taskList.innerHTML = '';
   for (const it of items){
     const li = document.createElement('li');
-    if (it.done) li.classList.add('done');
-    const check = document.createElement('div');
-    check.className = 'check';
-    check.innerHTML = '✏️';
-    check.title = 'Edit task';
-    check.addEventListener('click', async () => {
-      // Turn text into an input for editing
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = it.text;
-      input.style.flex = '1';
-      input.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter'){
-          const val = input.value.trim();
-          it.text = val || it.text;
-          await saveTasks(items);
-          renderTasks(items);
-        }
-      });
-      input.addEventListener('blur', async () => {
-        const val = input.value.trim();
-        it.text = val || it.text;
+    
+    // Add drag and drop attributes
+    li.draggable = true;
+    li.dataset.taskId = items.indexOf(it);
+    
+    // Add drag event listeners
+    li.addEventListener('dragstart', handleDragStart);
+    li.addEventListener('dragend', handleDragEnd);
+    li.addEventListener('dragover', handleDragOver);
+    li.addEventListener('drop', handleDrop);
+    
+    // Status indicator
+    const status = document.createElement('div');
+    status.className = 'task-status pending';
+    status.innerHTML = '⏱️';
+    status.title = 'Pending';
+    
+    // Task content
+    const content = document.createElement('div');
+    content.className = 'task-content';
+    
+    const title = document.createElement('div');
+    title.className = 'task-title';
+    title.textContent = it.text;
+    
+    const details = document.createElement('div');
+    details.className = 'task-details';
+    details.textContent = `- pending • added ${new Date().toLocaleTimeString()}`;
+    
+    content.appendChild(title);
+    content.appendChild(details);
+    
+    // Task actions
+    const actions = document.createElement('div');
+    actions.className = 'task-actions';
+    
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.innerHTML = '✏️';
+    editBtn.title = 'Edit task';
+    editBtn.addEventListener('click', async () => {
+      const newText = prompt('Edit task:', it.text);
+      if (newText && newText.trim()) {
+        it.text = newText.trim();
         await saveTasks(items);
         renderTasks(items);
-      });
-      li.replaceChild(input, span);
-      input.focus();
+      }
     });
-    const span = document.createElement('div');
-    span.className = 'task';
-    span.textContent = it.text;
-    const action = document.createElement('button');
-    action.className = 'ghost';
-    action.textContent = 'Mark As Done ✅';
-    action.addEventListener('click', async () => {
-      // Remove task upon completion
+    
+    const completeBtn = document.createElement('button');
+    completeBtn.className = 'complete-btn';
+    completeBtn.textContent = 'Complete';
+    completeBtn.addEventListener('click', async () => {
       celebrate();
       const idx = items.indexOf(it);
-      if (idx >= 0) items.splice(idx,1);
+      if (idx >= 0) items.splice(idx, 1);
       await saveTasks(items);
       renderTasks(items);
     });
-    li.appendChild(check);
-    li.appendChild(span);
-    li.appendChild(action);
+    
+    actions.appendChild(editBtn);
+    actions.appendChild(completeBtn);
+    
+    li.appendChild(status);
+    li.appendChild(content);
+    li.appendChild(actions);
     $taskList.appendChild(li);
   }
+  
+  // Update motivation after rendering tasks
+  updateMotivation();
 }
 
 async function saveTasks(items){
   await chrome.storage.local.set({ tasks: items });
+}
+
+// Drag and drop functionality
+let draggedElement = null;
+
+function handleDragStart(e) {
+  draggedElement = e.target;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', e.target.outerHTML);
+}
+
+function handleDragEnd(e) {
+  e.target.classList.remove('dragging');
+  // Remove drag-over class from all items
+  document.querySelectorAll('#task-list li').forEach(li => {
+    li.classList.remove('drag-over');
+  });
+  draggedElement = null;
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  
+  const afterElement = getDragAfterElement($taskList, e.clientY);
+  const dragging = document.querySelector('.dragging');
+  
+  if (afterElement == null) {
+    $taskList.appendChild(dragging);
+  } else {
+    $taskList.insertBefore(dragging, afterElement);
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  // The actual reordering is handled in handleDragOver
+  // Here we just save the new order
+  const tasks = Array.from($taskList.children).map((li, index) => {
+    const taskText = li.querySelector('.task').textContent;
+    return { text: taskText, done: false };
+  });
+  
+  saveTasks(tasks);
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 async function initTasks(){
