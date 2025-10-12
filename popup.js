@@ -568,120 +568,49 @@ async function loginWithSpotify(){
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
   
-  console.log('🌐 Opening Spotify authorization in new tab...');
+  console.log('🌐 Opening Spotify authorization (identity flow)...');
   
-  // Open in new tab instead of popup
-  const tab = await chrome.tabs.create({ url, active: true });
-  console.log('✅ Opened auth tab:', tab.id);
+  // Use identity flow so Chrome captures the redirect (no DNS lookup)
+  const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+  console.log('✅ Received redirect URL:', redirectUrl);
   
-  // Listen for the redirect using beforeNavigate
-  return new Promise((resolve, reject) => {
-    // Use webNavigation to catch the redirect before it loads
-    const navListener = async (details) => {
-      if (details.tabId !== tab.id) return;
-      
-      const url = details.url;
-      
-      if (url && url.startsWith(redirectUri)) {
-        console.log('✅ Intercepted redirect URL:', url);
-        
-        // Remove listener immediately
-        chrome.webNavigation.onBeforeNavigate.removeListener(navListener);
-        
-        // Close the auth tab
-        await chrome.tabs.remove(details.tabId).catch(() => {});
-        
-        try {
-          // Parse the URL to get the authorization code
-          const urlObj = new URL(url);
-          const code = urlObj.searchParams.get('code');
-          const errorParam = urlObj.searchParams.get('error');
-          
-          if (errorParam) {
-            console.error('❌ Spotify returned error:', errorParam);
-            reject(new Error(`Spotify error: ${errorParam}`));
-            return;
-          }
-          
-          if (!code) {
-            console.error('❌ No authorization code in redirect');
-            reject(new Error('No authorization code received from Spotify'));
-            return;
-          }
-          
-          console.log('🔄 Exchanging authorization code for access token...');
-          
-          // Exchange code for access token
-          const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
-          
-          if (!spotifyCodeVerifier) {
-            reject(new Error('Code verifier not found in storage'));
-            return;
-          }
-          
-          const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams({
-              client_id: clientId,
-              grant_type: 'authorization_code',
-              code: code,
-              redirect_uri: redirectUri,
-              code_verifier: spotifyCodeVerifier
-            })
-          });
-          
-          if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
-            console.error('❌ Token exchange failed:', tokenResponse.status, errorText);
-            let errorData;
-            try {
-              errorData = JSON.parse(errorText);
-            } catch {
-              errorData = { error: 'unknown', error_description: errorText };
-            }
-            reject(new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`));
-            return;
-          }
-          
-          const tokenData = await tokenResponse.json();
-          const access = tokenData.access_token;
-          
-          if (!access) {
-            console.error('❌ No access token in response:', tokenData);
-            reject(new Error('No access token received from Spotify'));
-            return;
-          }
-          
-          console.log('✅ Successfully received access token');
-          await chrome.storage.local.set({ 
-            spotifyToken: access, 
-            tokenTimestamp: Date.now(),
-            spotifyRefreshToken: tokenData.refresh_token || ''
-          });
-          
-          console.log('✅ Token saved to storage');
-          toggleViews(true);
-          console.log('✅ Login complete!');
-          resolve();
-        } catch (error) {
-          console.error('❌ Login error:', error);
-          reject(error);
-        }
-      }
-    };
-    
-    chrome.webNavigation.onBeforeNavigate.addListener(navListener);
-    
-    // Timeout after 5 minutes
-    setTimeout(() => {
-      chrome.webNavigation.onBeforeNavigate.removeListener(navListener);
-      chrome.tabs.remove(tab.id).catch(() => {});
-      reject(new Error('Login timeout'));
-    }, 300000);
+  // Parse the URL to get the authorization code
+  const urlObj = new URL(redirectUrl);
+  const code = urlObj.searchParams.get('code');
+  const errorParam = urlObj.searchParams.get('error');
+  
+  if (errorParam) throw new Error(`Spotify error: ${errorParam}`);
+  if (!code) throw new Error('No authorization code received from Spotify');
+  
+  console.log('🔄 Exchanging authorization code for access token...');
+  const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
+  if (!spotifyCodeVerifier) throw new Error('Code verifier not found in storage');
+  
+  const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: spotifyCodeVerifier
+    })
   });
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    throw new Error(`Token exchange failed: ${errorText}`);
+  }
+  const tokenData = await tokenResponse.json();
+  if (!tokenData.access_token) throw new Error('No access token in response');
+  
+  await chrome.storage.local.set({ 
+    spotifyToken: tokenData.access_token, 
+    tokenTimestamp: Date.now(),
+    spotifyRefreshToken: tokenData.refresh_token || ''
+  });
+  toggleViews(true);
+  console.log('✅ Login complete!');
 }
 
 // PKCE helper functions
