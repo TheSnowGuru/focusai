@@ -7693,3 +7693,196 @@ This will tell us exactly what Spotify is returning and why the token isn't bein
 
 ---
 
+_**User (2025-10-11 21:47Z)**_
+
+No access token in redirect
+loginWithSpotify @ popup.js:532Understand this error
+popup.js:533 Full redirect URL: https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback#error=unsupported_response_type
+loginWithSpotify @ popup.js:533Understand this error
+popup.js:541 Login error: Error: No access token received from Spotify. Check console for details.
+    at loginWithSpotify (popup.js:534:13)
+    at async HTMLButtonElement.<anonymous> (popup.js:443:9)
+loginWithSpotify @ popup.js:541Understand this error 
+
+---
+
+_**Assistant (default)**_
+
+Perfect! I found the issue! The error is `unsupported_response_type`. This means Spotify doesn't support the OAuth flow type we're using. The issue is that we're using the **Implicit Grant Flow** (`response_type=token`), but Spotify has deprecated this for security reasons.
+
+We need to use the **Authorization Code Flow with PKCE** instead. Let me fix this:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.js</summary>
+
+**Chunk 1**
+Lines added: 13, lines removed: 3
+
+```diff
+@@ -492,15 +492,25 @@
+    const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
+    const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
++   
++   // Generate PKCE code verifier and challenge
++   const codeVerifier = generateRandomString(128);
++   const codeChallenge = await generateCodeChallenge(codeVerifier);
++   
++   // Store code verifier for later use
++   await chrome.storage.local.set({ spotifyCodeVerifier: codeVerifier });
++   
+    const params = new URLSearchParams({
+      client_id: clientId,
+-     response_type: 'token',
++     response_type: 'code',
+      redirect_uri: redirectUri,
+-     scope: scopes.join(' ')
++     scope: scopes.join(' '),
++     code_challenge_method: 'S256',
++     code_challenge: codeChallenge
+    }).toString();
+    const url = `https://accounts.spotify.com/authorize?${params}`;
+    
+    console.log('Extension ID:', extensionId);
+    console.log('Redirect URI:', redirectUri);
+-   console.log('Starting Spotify auth with URL:', url);
++   console.log('Starting Spotify auth with PKCE URL:', url);
+    
+    try {
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.js</summary>
+
+**Chunk 1**
+Lines added: 40, lines removed: 19
+
+```diff
+@@ -518,33 +518,54 @@
+      console.log('Received redirect URL:', redirectUrl);
+      
+-     // Parse the URL to check for error or access token
++     // Parse the URL to get the authorization code
+      const urlObj = new URL(redirectUrl);
+-     console.log('URL pathname:', urlObj.pathname);
+-     console.log('URL hash:', urlObj.hash);
+-     console.log('URL search:', urlObj.search);
+-     
+-     // Check if there's an error in the URL
++     const code = urlObj.searchParams.get('code');
+      const errorParam = urlObj.searchParams.get('error');
++     
+      if (errorParam) {
+        console.error('Spotify returned error:', errorParam);
+        throw new Error(`Spotify error: ${errorParam}`);
+      }
+      
+-     const hash = urlObj.hash.slice(1);
+-     console.log('Hash after slice:', hash);
+-     const data = new URLSearchParams(hash);
+-     const access = data.get('access_token');
+-     
+-     console.log('Parsed access token:', access ? 'Found (length: ' + access.length + ')' : 'NOT FOUND');
+-     console.log('All hash params:', Array.from(data.entries()));
++     if (!code) {
++       console.error('No authorization code in redirect');
++       console.error('Full redirect URL:', redirectUrl);
++       throw new Error('No authorization code received from Spotify');
++     }
++     
++     console.log('Received authorization code, exchanging for token...');
++     
++     // Exchange code for access token
++     const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
++     
++     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
++       method: 'POST',
++       headers: {
++         'Content-Type': 'application/x-www-form-urlencoded'
++       },
++       body: new URLSearchParams({
++         client_id: clientId,
++         grant_type: 'authorization_code',
++         code: code,
++         redirect_uri: redirectUri,
++         code_verifier: spotifyCodeVerifier
++       })
++     });
+      
+-     if (!access) {
+-       console.error('No access token in redirect');
+-       console.error('Full redirect URL:', redirectUrl);
+-       throw new Error('No access token received from Spotify. Check console for details.');
+-     }
++     if (!tokenResponse.ok) {
++       const errorData = await tokenResponse.json();
++       console.error('Token exchange failed:', errorData);
++       throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
++     }
++     
++     const tokenData = await tokenResponse.json();
++     const access = tokenData.access_token;
+      
+      console.log('Successfully received access token');
+-     await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
++     await chrome.storage.local.set({ 
++       spotifyToken: access, 
++       tokenTimestamp: Date.now(),
++       spotifyRefreshToken: tokenData.refresh_token 
++     });
+      toggleViews(true);
+    } catch (error) {
+```
+
+**Chunk 2**
+Lines added: 16, lines removed: undefined
+
+```diff
+@@ -554,4 +575,20 @@
+    }
+  }
++ 
++ // PKCE helper functions
++ function generateRandomString(length) {
++   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
++   const values = crypto.getRandomValues(new Uint8Array(length));
++   return values.reduce((acc, x) => acc + possible[x % possible.length], '');
++ }
++ 
++ async function generateCodeChallenge(codeVerifier) {
++   const data = new TextEncoder().encode(codeVerifier);
++   const hashed = await crypto.subtle.digest('SHA-256', data);
++   return btoa(String.fromCharCode(...new Uint8Array(hashed)))
++     .replace(/=/g, '')
++     .replace(/\+/g, '-')
++     .replace(/\//g, '_');
++ }
+  
+  
+```
+
+</details>
+
+---
+
+Now let me also update the background.js to use the same PKCE flow:
+
+---
+
+Tool use: **search_replace**
+
+---
+
+
+
+---
+

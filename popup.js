@@ -491,57 +491,104 @@ async function loginWithSpotify(){
   const extensionId = chrome.runtime.id;
   const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
   const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+  
+  // Generate PKCE code verifier and challenge
+  const codeVerifier = generateRandomString(128);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  
+  // Store code verifier for later use
+  await chrome.storage.local.set({ spotifyCodeVerifier: codeVerifier });
+  
   const params = new URLSearchParams({
     client_id: clientId,
-    response_type: 'token',
+    response_type: 'code',
     redirect_uri: redirectUri,
-    scope: scopes.join(' ')
+    scope: scopes.join(' '),
+    code_challenge_method: 'S256',
+    code_challenge: codeChallenge
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
   
   console.log('Extension ID:', extensionId);
   console.log('Redirect URI:', redirectUri);
-  console.log('Starting Spotify auth with URL:', url);
+  console.log('Starting Spotify auth with PKCE URL:', url);
   
   try {
     const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
     console.log('Received redirect URL:', redirectUrl);
     
-    // Parse the URL to check for error or access token
+    // Parse the URL to get the authorization code
     const urlObj = new URL(redirectUrl);
-    console.log('URL pathname:', urlObj.pathname);
-    console.log('URL hash:', urlObj.hash);
-    console.log('URL search:', urlObj.search);
-    
-    // Check if there's an error in the URL
+    const code = urlObj.searchParams.get('code');
     const errorParam = urlObj.searchParams.get('error');
+    
     if (errorParam) {
       console.error('Spotify returned error:', errorParam);
       throw new Error(`Spotify error: ${errorParam}`);
     }
     
-    const hash = urlObj.hash.slice(1);
-    console.log('Hash after slice:', hash);
-    const data = new URLSearchParams(hash);
-    const access = data.get('access_token');
-    
-    console.log('Parsed access token:', access ? 'Found (length: ' + access.length + ')' : 'NOT FOUND');
-    console.log('All hash params:', Array.from(data.entries()));
-    
-    if (!access) {
-      console.error('No access token in redirect');
+    if (!code) {
+      console.error('No authorization code in redirect');
       console.error('Full redirect URL:', redirectUrl);
-      throw new Error('No access token received from Spotify. Check console for details.');
+      throw new Error('No authorization code received from Spotify');
     }
     
+    console.log('Received authorization code, exchanging for token...');
+    
+    // Exchange code for access token
+    const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
+    
+    const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: redirectUri,
+        code_verifier: spotifyCodeVerifier
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json();
+      console.error('Token exchange failed:', errorData);
+      throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
+    }
+    
+    const tokenData = await tokenResponse.json();
+    const access = tokenData.access_token;
+    
     console.log('Successfully received access token');
-    await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
+    await chrome.storage.local.set({ 
+      spotifyToken: access, 
+      tokenTimestamp: Date.now(),
+      spotifyRefreshToken: tokenData.refresh_token 
+    });
     toggleViews(true);
   } catch (error) {
     console.error('Login error:', error);
     alert('Spotify login failed. Please try again. Error: ' + error.message);
     throw error;
   }
+}
+
+// PKCE helper functions
+function generateRandomString(length) {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = crypto.getRandomValues(new Uint8Array(length));
+  return values.reduce((acc, x) => acc + possible[x % possible.length], '');
+}
+
+async function generateCodeChallenge(codeVerifier) {
+  const data = new TextEncoder().encode(codeVerifier);
+  const hashed = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(hashed)))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
 }
 
 

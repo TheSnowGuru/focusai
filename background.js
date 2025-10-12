@@ -3,15 +3,38 @@ let keepAlive = false;
 const SPOTIFY_CLIENT_ID = '13b4d04efb374d83892efa41680c4a3b';
 const SPOTIFY_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
 
+function generateRandomString(length) {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = crypto.getRandomValues(new Uint8Array(length));
+  return values.reduce((acc, x) => acc + possible[x % possible.length], '');
+}
+
+async function generateCodeChallenge(codeVerifier) {
+  const data = new TextEncoder().encode(codeVerifier);
+  const hashed = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(hashed)))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
+
 async function spotifyAuth() {
   const extensionId = chrome.runtime.id;
   const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
   
+  // Generate PKCE code verifier and challenge
+  const codeVerifier = generateRandomString(128);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  
+  await chrome.storage.local.set({ spotifyCodeVerifier: codeVerifier });
+  
   const params = new URLSearchParams({
     client_id: SPOTIFY_CLIENT_ID,
-    response_type: 'token',
+    response_type: 'code',
     redirect_uri: redirectUri,
-    scope: SPOTIFY_SCOPES.join(' ')
+    scope: SPOTIFY_SCOPES.join(' '),
+    code_challenge_method: 'S256',
+    code_challenge: codeChallenge
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
   
@@ -19,14 +42,33 @@ async function spotifyAuth() {
   console.log('Background auth - Redirect URI:', redirectUri);
   
   const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-  const hash = new URL(redirectUrl).hash.slice(1);
-  const data = new URLSearchParams(hash);
-  const access = data.get('access_token');
-  if (access){
-    await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
-    return true;
-  }
-  return false;
+  const urlObj = new URL(redirectUrl);
+  const code = urlObj.searchParams.get('code');
+  
+  if (!code) return false;
+  
+  // Exchange code for token
+  const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: SPOTIFY_CLIENT_ID,
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier
+    })
+  });
+  
+  if (!tokenResponse.ok) return false;
+  
+  const tokenData = await tokenResponse.json();
+  await chrome.storage.local.set({ 
+    spotifyToken: tokenData.access_token, 
+    tokenTimestamp: Date.now(),
+    spotifyRefreshToken: tokenData.refresh_token 
+  });
+  return true;
 }
 
 async function ensureOffscreen(){
