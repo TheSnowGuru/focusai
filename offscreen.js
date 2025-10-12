@@ -1,6 +1,7 @@
 console.log('🎬 Offscreen document loading...');
 
 let currentIframe = null;
+let currentAudio = null;
 let cachedToken = ''; // Cache token received via messages
 
 // No need to access chrome.storage - we'll receive token via messages
@@ -12,21 +13,60 @@ function removeIframe(){
   currentIframe = null;
 }
 
+function stopAudio(){
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = '';
+    currentAudio = null;
+  }
+}
+
 function playTrack(track){
   removeIframe();
+  stopAudio();
+  
   if (!track || !track.url) return;
+  
   const id = (track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
+  if (!id) return;
+  
+  console.log('🎵 Playing track via iframe embed (fallback)');
+  
+  // Create iframe embed as fallback
   const iframe = document.createElement('iframe');
   iframe.width = '100%';
   iframe.height = '80';
   iframe.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
   iframe.style.border = '0';
-  iframe.src = `https://open.spotify.com/embed/track/${id}`;
+  iframe.src = `https://open.spotify.com/embed/track/${id}?autoplay=1`;
   document.body.appendChild(iframe);
   currentIframe = iframe;
+  
+  // Also try to get preview URL and play via Audio API (continues in background)
+  fetch(`https://api.spotify.com/v1/tracks/${id}`, {
+    headers: cachedToken ? { 'Authorization': 'Bearer ' + cachedToken } : {}
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.preview_url) {
+      console.log('🎧 Found preview URL, playing via Audio API');
+      currentAudio = new Audio(data.preview_url);
+      currentAudio.loop = true; // Loop the 30s preview
+      currentAudio.volume = 0.7;
+      currentAudio.play().catch(e => {
+        console.log('Audio API play failed:', e);
+      });
+    }
+  })
+  .catch(e => {
+    console.log('Could not fetch preview URL:', e);
+  });
 }
 
-function stop(){ removeIframe(); }
+function stop(){ 
+  removeIframe();
+  stopAudio();
+}
 
 async function playViaWebApi(track, token){
   if (!track || !track.url || !token) return false;
@@ -72,19 +112,22 @@ chrome.runtime.onMessage.addListener(async (msg) => {
     // Update token if provided
     if (msg.token) {
       cachedToken = msg.token;
+      console.log('🔑 Token updated from message');
     }
     
-    // Try Web API first with cached token, then fall back to embed
+    // Priority 1: Try Web API (full tracks, requires Premium + active device)
     if (cachedToken && msg.track) {
       const ok = await playViaWebApi(msg.track, cachedToken);
       if (ok) {
-        console.log('✅ Playback via Web API successful');
+        console.log('✅ Playback via Web API successful (full track)');
         return;
       }
+      console.log('⚠️ Web API failed, trying fallback methods...');
     }
     
-    // Fallback to iframe embed (no auth needed, but 30s previews only)
-    console.log('🎵 Falling back to iframe embed');
+    // Priority 2: Fallback to iframe embed + Audio API preview
+    // This will play 30s previews via Audio API which continues in background
+    console.log('🎵 Using fallback: iframe embed + Audio API preview');
     playTrack(msg.track);
   }
   
