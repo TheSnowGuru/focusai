@@ -137,23 +137,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message && message.type === 'PLAY_SPOTIFY') {
       if (message.track){
         await ensureOffscreen();
-        chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track: message.track });
+        // Send to offscreen, ignore if it doesn't exist yet
+        chrome.runtime.sendMessage({ type: 'PLAY_SPOTIFY', track: message.track }).catch(() => {});
       }
       keepAlive = true;
       sendResponse({ ok: true });
     } else if (message && message.type === 'STOP_SPOTIFY') {
       keepAlive = false;
-      chrome.runtime.sendMessage({ type: 'STOP_SPOTIFY' });
+      // Send to offscreen, ignore if it doesn't exist yet
+      chrome.runtime.sendMessage({ type: 'STOP_SPOTIFY' }).catch(() => {});
       sendResponse({ ok: true });
     } else if (message && message.type === 'LOGIN_SPOTIFY') {
-      const ok = await spotifyAuth().catch(() => false);
-      chrome.runtime.sendMessage({ type: 'LOGIN_RESULT', ok });
-      sendResponse({ ok });
+      const ok = await spotifyAuth().catch(e => {
+        console.error('Auth error:', e);
+        return false;
+      });
+      // Reply directly to sender instead of broadcasting
+      sendResponse({ ok, type: 'LOGIN_RESULT' });
     } else if (message && message.type === 'IS_AUTHENTICATED') {
       const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
       const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
-      chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
-      sendResponse({ ok });
+      // Reply directly to sender instead of broadcasting
+      sendResponse({ ok, type: 'AUTH_STATUS' });
     }
   })();
   return true; // keep channel open for async

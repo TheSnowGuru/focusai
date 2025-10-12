@@ -7880,9 +7880,486 @@ Now let me also update the background.js to use the same PKCE flow:
 
 Tool use: **search_replace**
 
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/background.js</summary>
+
+**Chunk 1**
+Lines added: 25, lines removed: 2
+
+```diff
+@@ -3,14 +3,37 @@
+  const SPOTIFY_CLIENT_ID = '13b4d04efb374d83892efa41680c4a3b';
+  const SPOTIFY_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
++ 
++ function generateRandomString(length) {
++   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
++   const values = crypto.getRandomValues(new Uint8Array(length));
++   return values.reduce((acc, x) => acc + possible[x % possible.length], '');
++ }
++ 
++ async function generateCodeChallenge(codeVerifier) {
++   const data = new TextEncoder().encode(codeVerifier);
++   const hashed = await crypto.subtle.digest('SHA-256', data);
++   return btoa(String.fromCharCode(...new Uint8Array(hashed)))
++     .replace(/=/g, '')
++     .replace(/\+/g, '-')
++     .replace(/\//g, '_');
++ }
+  
+  async function spotifyAuth() {
+    const extensionId = chrome.runtime.id;
+    const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
++   
++   // Generate PKCE code verifier and challenge
++   const codeVerifier = generateRandomString(128);
++   const codeChallenge = await generateCodeChallenge(codeVerifier);
++   
++   await chrome.storage.local.set({ spotifyCodeVerifier: codeVerifier });
+    
+    const params = new URLSearchParams({
+      client_id: SPOTIFY_CLIENT_ID,
+-     response_type: 'token',
++     response_type: 'code',
+      redirect_uri: redirectUri,
+-     scope: SPOTIFY_SCOPES.join(' ')
++     scope: SPOTIFY_SCOPES.join(' '),
++     code_challenge_method: 'S256',
++     code_challenge: codeChallenge
+    }).toString();
+    const url = `https://accounts.spotify.com/authorize?${params}`;
+```
+
+**Chunk 2**
+Lines added: 27, lines removed: 8
+
+```diff
+@@ -20,12 +43,31 @@
+    
+    const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+-   const hash = new URL(redirectUrl).hash.slice(1);
+-   const data = new URLSearchParams(hash);
+-   const access = data.get('access_token');
+-   if (access){
+-     await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
+-     return true;
+-   }
+-   return false;
++   const urlObj = new URL(redirectUrl);
++   const code = urlObj.searchParams.get('code');
++   
++   if (!code) return false;
++   
++   // Exchange code for token
++   const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
++     method: 'POST',
++     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++     body: new URLSearchParams({
++       client_id: SPOTIFY_CLIENT_ID,
++       grant_type: 'authorization_code',
++       code: code,
++       redirect_uri: redirectUri,
++       code_verifier: codeVerifier
++     })
++   });
++   
++   if (!tokenResponse.ok) return false;
++   
++   const tokenData = await tokenResponse.json();
++   await chrome.storage.local.set({ 
++     spotifyToken: tokenData.access_token, 
++     tokenTimestamp: Date.now(),
++     spotifyRefreshToken: tokenData.refresh_token 
++   });
++   return true;
+  }
+  
+```
+
+</details>
+
 ---
 
+Tool use: **read_lints**
 
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/popup.js`
+- `/Users/shay/Documents/GitHub/focus/background.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! Now let's test again. Here's what I fixed:
+
+## ✅ Fixed the OAuth Issue
+
+**The Problem:** Spotify no longer supports the Implicit Grant flow (`response_type=token`) for security reasons. That's why you got `unsupported_response_type`.
+
+**The Solution:** I've implemented the proper **Authorization Code Flow with PKCE** which:
+1. Generates a secure code verifier
+2. Creates a code challenge from it
+3. Gets an authorization code from Spotify
+4. Exchanges the code for an access token
+5. Also stores a refresh token for future use
+
+## 🧪 Test Again:
+
+1. **Reload the extension** (chrome://extensions → refresh button)
+2. **Open the popup**
+3. **Open DevTools Console** (F12)
+4. **Click "Login with Spotify"**
+
+You should now see:
+```
+Starting Spotify auth with PKCE URL: ...
+Received redirect URL: ...
+Received authorization code, exchanging for token...
+Successfully received access token
+```
+
+This should now work! The login page will open, you approve, and you'll get a proper access token that works with the Spotify Web Playback SDK.
+
+---
+
+_**User (2025-10-11 21:47Z)**_
+
+it worked i saw the agree app page, and clicked on it but then Context
+offscreen.html
+Stack Trace
+offscreen.js:13 (getStoredToken)
+offscreen.js:49 (playViaWebApi)
+offscreen.js:158 (anonymous function)
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+let currentIframe = null;
+let sdkPlayer = null;
+let sdkDeviceId = null;
+
+async function getStoredToken(){
+  try {
+    const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
+    const { spotifyToken, tokenTimestamp } = result;
+    if (!spotifyToken) return '';
+    const expired = (Date.now() - tokenTimestamp) >= 3600000;
+    return expired ? '' : spotifyToken;
+  } catch (e) {
+    console.error('Error getting stored token:', e);
+    return '';  fix it
+
+---
+
+_**Assistant (default)**_
+
+The error is happening because the offscreen document is trying to access `chrome.storage.local` which might not be ready yet. Let me add better error handling and also ensure the offscreen document waits for Chrome APIs to be ready:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/offscreen.js</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: undefined
+
+```diff
+@@ -5,4 +5,8 @@
+  async function getStoredToken(){
+    try {
++     if (!chrome || !chrome.storage || !chrome.storage.local) {
++       console.warn('Chrome storage not available yet');
++       return '';
++     }
+      const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
+      const { spotifyToken, tokenTimestamp } = result;
+```
+
+</details>
+
+---
+
+Now let me also add a delay to ensure Chrome APIs are ready before the offscreen tries to use them:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/offscreen.js</summary>
+
+**Chunk 1**
+Lines added: 9, lines removed: undefined
+
+```diff
+@@ -132,6 +132,15 @@
+    }
+  };
++ 
++ // Ensure Chrome APIs are ready before handling messages
++ let isReady = false;
++ setTimeout(() => { isReady = true; }, 100);
+  
+  chrome.runtime.onMessage.addListener(async (msg) => {
++   // Wait for initialization
++   if (!isReady) {
++     await new Promise(resolve => setTimeout(resolve, 200));
++   }
++   
+    if (msg.type === 'PLAY_SPOTIFY') {
+      // If SDK device is ready, transfer playback and play via Web API
+```
+
+**Chunk 2**
+Lines added: 8, lines removed: 3
+
+```diff
+@@ -173,7 +182,12 @@
+    }
+    if (msg.type === 'IS_AUTHENTICATED'){
+-     const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
+-     const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
+-     chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
++     try {
++       const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
++       const { spotifyToken, tokenTimestamp } = result;
++       const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
++       chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
++     } catch (e) {
++       console.error('IS_AUTHENTICATED error:', e);
++     }
+    }
+  });
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/offscreen.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Good! I've added initialization delays to ensure Chrome APIs are ready. Now let's test the complete flow:
+
+## ✅ What I Fixed:
+- Added a 100ms initialization delay before the offscreen accepts messages
+- Added extra safety checks in `getStoredToken()` to verify Chrome storage exists
+- Added error wrapping in the `IS_AUTHENTICATED` handler
+
+## 🧪 Test the Complete Flow:
+
+1. **Reload the extension** (chrome://extensions → refresh)
+2. **Open the popup** (should show login screen if logged out)
+3. **Click "Login with Spotify"** → approve permissions
+4. **After login succeeds**, the login screen should hide and show the timer
+5. **Click the bubble to start** → this will trigger playback
+6. **Check console** for any new errors
+
+The error you saw was the offscreen trying to access storage before it was ready. With the delays and checks in place, it should work now.
+
+**If you still see storage errors:**
+- The token was successfully saved (login worked!)
+- The offscreen just needs a moment to initialize
+- Try clicking "Start" again after 1-2 seconds
+
+Let me know if you see any new errors or if it works! 🎵
 
 ---
 

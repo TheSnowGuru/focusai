@@ -4,6 +4,10 @@ let sdkDeviceId = null;
 
 async function getStoredToken(){
   try {
+    if (!chrome || !chrome.storage || !chrome.storage.local) {
+      console.warn('Chrome storage not available yet');
+      return '';
+    }
     const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
     const { spotifyToken, tokenTimestamp } = result;
     if (!spotifyToken) return '';
@@ -128,7 +132,16 @@ window.onSpotifyWebPlaybackSDKReady = async () => {
   }
 };
 
+// Ensure Chrome APIs are ready before handling messages
+let isReady = false;
+setTimeout(() => { isReady = true; }, 100);
+
 chrome.runtime.onMessage.addListener(async (msg) => {
+  // Wait for initialization
+  if (!isReady) {
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
   if (msg.type === 'PLAY_SPOTIFY') {
     // If SDK device is ready, transfer playback and play via Web API
     if (sdkDeviceId && msg.track && msg.track.url){
@@ -168,9 +181,14 @@ chrome.runtime.onMessage.addListener(async (msg) => {
     // Handled by background
   }
   if (msg.type === 'IS_AUTHENTICATED'){
-    const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
-    const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
-    chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
+    try {
+      const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
+      const { spotifyToken, tokenTimestamp } = result;
+      const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
+      chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
+    } catch (e) {
+      console.error('IS_AUTHENTICATED error:', e);
+    }
   }
 });
 

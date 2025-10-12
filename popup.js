@@ -442,19 +442,18 @@ function initAuthHandlers(){
       try {
         await loginWithSpotify();
       } catch (e) {
+        console.error('Direct login failed, trying via background:', e);
         // fallback: ask background (in case of policies)
-        chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' });
+        chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' }, (response) => {
+          if (response && response.ok) {
+            checkExistingSession();
+          } else {
+            alert('Login failed. Please try again.');
+          }
+        });
       }
     });
   }
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.type === 'LOGIN_RESULT'){
-      checkExistingSession();
-    }
-    if (msg && msg.type === 'AUTH_STATUS'){
-      toggleViews(msg.ok);
-    }
-  });
 }
 
 async function checkExistingSession(){
