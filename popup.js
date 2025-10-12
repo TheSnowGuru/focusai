@@ -115,8 +115,9 @@ async function restoreState(){
   const state = await chrome.storage.local.get(defaults);
   const { startTime, durationMs, isRunning, track } = state;
 
-  // Check for existing session first
-  await checkExistingSession();
+  // Check for existing session first and toggle views accordingly
+  const isAuthed = await checkExistingSession();
+  toggleViews(isAuthed);
 
   if (isRunning && startTime){
     const elapsed = Date.now() - startTime;
@@ -664,29 +665,14 @@ function celebrate(){
 }
 
 function initAuthHandlers(){
-  // Display redirect URI
+  // Display redirect URI in the new login card
   const redirectUri = chrome.identity.getRedirectURL('callback');
-  const redirectDisplay = document.getElementById('redirect-uri-display');
-  const copyBtn = document.getElementById('copy-redirect-uri');
+  const redirectDisplay = document.getElementById('redirect-uri');
   
   console.log('📋 Redirect URI:', redirectUri);
   
   if (redirectDisplay) {
     redirectDisplay.textContent = redirectUri;
-  }
-  
-  if (copyBtn) {
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(redirectUri);
-        copyBtn.textContent = '✅ Copied!';
-        setTimeout(() => {
-          copyBtn.textContent = 'Copy Redirect URI';
-        }, 2000);
-      } catch (e) {
-        alert('Failed to copy. URI: ' + redirectUri);
-      }
-    });
   }
   
   if ($loginBtn){
@@ -707,6 +693,31 @@ function initAuthHandlers(){
   }
 }
 
+function toggleViews(isAuthed) {
+  console.log('🔄 Toggle views - isAuthed:', isAuthed);
+  
+  if ($viewTimer) {
+    $viewTimer.classList.toggle('hidden', !isAuthed);
+  }
+  if ($viewLogin) {
+    $viewLogin.classList.toggle('hidden', !!isAuthed);
+  }
+  
+  // Update auth button
+  if ($authBtn) {
+    if (isAuthed) {
+      $authBtn.textContent = 'Logout';
+      $authBtn.style.background = '#dc3545';
+    } else {
+      $authBtn.textContent = 'Login';
+      $authBtn.style.background = '#007bff';
+    }
+  }
+  
+  console.log('Timer visible:', !$viewTimer?.classList.contains('hidden'));
+  console.log('Login visible:', !$viewLogin?.classList.contains('hidden'));
+}
+
 async function checkExistingSession(){
   // Check if we have a valid token
   const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
@@ -723,7 +734,6 @@ async function checkExistingSession(){
       if (res.ok) {
         const user = await res.json();
         console.log('✅ Valid session found:', user.display_name);
-        toggleViews(true);
         return true;
       }
     } catch (e) {
@@ -732,34 +742,9 @@ async function checkExistingSession(){
   }
   
   console.log('❌ No valid session');
-  toggleViews(false);
-    return false;
+  return false;
 }
 
-function toggleViews(isAuthed){
-  console.log('🔄 Toggle views - isAuthed:', isAuthed);
-  
-  if ($viewTimer) {
-    $viewTimer.classList.toggle('hidden', !isAuthed);
-  }
-  if ($viewLogin){
-    $viewLogin.classList.toggle('hidden', !!isAuthed);
-  }
-  
-  // Update auth button
-  if ($authBtn) {
-    if (isAuthed) {
-      $authBtn.textContent = 'Logout';
-      $authBtn.style.color = '#ff6b6b';
-    } else {
-      $authBtn.textContent = 'Login';
-      $authBtn.style.color = '#1db954';
-    }
-  }
-  
-  console.log('Timer visible:', !$viewTimer?.classList.contains('hidden'));
-  console.log('Login visible:', !$viewLogin?.classList.contains('hidden'));
-}
 
 async function loginWithSpotify(){
   const clientId = '13b4d04efb374d83892efa41680c4a3b';
