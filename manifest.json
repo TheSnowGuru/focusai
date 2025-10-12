@@ -11,7 +11,8 @@
   "host_permissions": [
     "https://open.spotify.com/*",
     "https://api.spotify.com/*",
-    "https://accounts.spotify.com/*"
+    "https://accounts.spotify.com/*",
+    "https://*.chromiumapp.org/*"
   ],
   "background": {
     "service_worker": "background.js"

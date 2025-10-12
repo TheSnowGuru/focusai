@@ -71,6 +71,53 @@ async function spotifyAuth() {
   return true;
 }
 
+// Intercept redirects to the chromiumapp.org redirect URI before DNS
+try {
+  chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+    try {
+      if (!details || !details.url) return;
+      const url = details.url;
+      if (!url.startsWith('https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback')) return;
+      
+      // Parse code and exchange immediately
+      const u = new URL(url);
+      const code = u.searchParams.get('code');
+      if (!code) return;
+      
+      const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
+      if (!spotifyCodeVerifier) return;
+      
+      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: SPOTIFY_CLIENT_ID,
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback',
+          code_verifier: spotifyCodeVerifier
+        })
+      });
+      if (!tokenResponse.ok) {
+        console.error('Token exchange failed in background intercept:', await tokenResponse.text());
+        return;
+      }
+      const tokenData = await tokenResponse.json();
+      await chrome.storage.local.set({
+        spotifyToken: tokenData.access_token,
+        tokenTimestamp: Date.now(),
+        spotifyRefreshToken: tokenData.refresh_token || ''
+      });
+      console.log('✅ Token stored from background intercept');
+      
+      // Close the navigating tab to avoid DNS error
+      try { await chrome.tabs.remove(details.tabId); } catch {}
+    } catch (e) {
+      console.error('webNavigation intercept error:', e);
+    }
+  });
+} catch {}
+
 async function ensureOffscreen(){
   const has = await chrome.offscreen.hasDocument?.().catch(() => false);
   if (has) return;
