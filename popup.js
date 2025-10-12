@@ -69,8 +69,13 @@ function showTrack(track){
   console.log('🎵 showTrack called:', track.name, track.url);
   $freq.textContent = `${track.frequency} Hz`;
   $name.textContent = track.name;
-  // Playback happens in offscreen; keep popup iframe blank so closing popup won't stop audio
-  if ($player) $player.src = 'about:blank';
+  // Show the Spotify embed UI in the popup (visual only)
+  try {
+    const id = (track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
+    if ($player && id) {
+      $player.src = `https://open.spotify.com/embed/track/${id}`;
+    }
+  } catch {}
   $open.href = track.url;
   // ask offscreen to play
   console.log('📤 Sending PLAY_SPOTIFY message to background');
