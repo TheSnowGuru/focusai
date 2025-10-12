@@ -7,7 +7,7 @@
     "default_title": "FocusAI",
     "default_popup": "popup.html"
   },
-  "permissions": ["alarms", "notifications", "storage", "offscreen", "tabs", "scripting", "identity"],
+  "permissions": ["alarms", "notifications", "storage", "offscreen", "tabs", "scripting", "identity", "webNavigation"],
   "host_permissions": [
     "https://open.spotify.com/*",
     "https://api.spotify.com/*",
