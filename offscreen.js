@@ -1,13 +1,39 @@
+console.log('🎬 Offscreen document loading...');
+
 let currentIframe = null;
 let sdkPlayer = null;
 let sdkDeviceId = null;
 
-async function getStoredToken(){
-  try {
-    if (!chrome || !chrome.storage || !chrome.storage.local) {
-      console.warn('Chrome storage not available yet');
-      return '';
+// Wait for Chrome APIs to be ready with exponential backoff
+async function waitForChromeApis() {
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (attempts < maxAttempts) {
+    if (chrome?.storage?.local) {
+      console.log('✅ Chrome APIs ready after', attempts, 'attempts');
+      return true;
     }
+    
+    const delay = Math.min(100 * Math.pow(2, attempts), 2000); // Exponential backoff, max 2s
+    console.log(`⏳ Waiting for Chrome APIs... (attempt ${attempts + 1}, delay ${delay}ms)`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    attempts++;
+  }
+  
+  console.error('❌ Chrome APIs not available after', maxAttempts, 'attempts');
+  return false;
+}
+
+async function getStoredToken(){
+  // Ensure Chrome APIs are ready
+  const ready = await waitForChromeApis();
+  if (!ready) {
+    console.error('Cannot access Chrome storage - APIs not ready');
+    return '';
+  }
+  
+  try {
     const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp:0 });
     const { spotifyToken, tokenTimestamp } = result;
     if (!spotifyToken) return '';
@@ -50,17 +76,13 @@ async function playViaWebApi(track){
   if (!track || !track.url) return false;
   const id = (track.url.match(/track\/([A-Za-z0-9]+)/) || [])[1];
   if (!id) return false;
-  let token = await getStoredToken();
-  if (!token){
-    // ask background to authenticate on demand
-    await new Promise((resolve) => {
-      const handler = (msg) => { if (msg && msg.type === 'LOGIN_RESULT'){ chrome.runtime.onMessage.removeListener(handler); resolve(); } };
-      chrome.runtime.onMessage.addListener(handler);
-      chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' });
-    });
-    token = await getStoredToken();
-    if (!token) return false;
+  
+  const token = await getStoredToken();
+  if (!token) {
+    console.log('No token available for Web API playback');
+    return false;
   }
+  
   try {
     const res = await fetch('https://api.spotify.com/v1/me/player/play',{
       method:'PUT',
@@ -70,23 +92,29 @@ async function playViaWebApi(track){
       },
       body: JSON.stringify({ uris: [`spotify:track:${id}`] })
     });
-    return res.status === 204;
-  } catch {
+    
+    if (res.status === 204) {
+      console.log('Web API playback started');
+      return true;
+    } else {
+      const errorText = await res.text();
+      console.log('Web API playback failed:', res.status, errorText);
+      return false;
+    }
+  } catch (e) {
+    console.error('Web API playback error:', e);
     return false;
   }
 }
 
 // Initialize SDK when ready
 window.onSpotifyWebPlaybackSDKReady = async () => {
-  let token = await getStoredToken();
+  console.log('Spotify SDK Ready callback triggered');
+  
+  const token = await getStoredToken();
   if (!token){
-    await new Promise((resolve) => {
-      const handler = (msg) => { if (msg && msg.type === 'LOGIN_RESULT'){ chrome.runtime.onMessage.removeListener(handler); resolve(); } };
-      chrome.runtime.onMessage.addListener(handler);
-      chrome.runtime.sendMessage({ type: 'LOGIN_SPOTIFY' });
-    });
-    token = await getStoredToken();
-    if (!token) return;
+    console.log('No token available, SDK initialization skipped');
+    return;
   }
   
   sdkPlayer = new Spotify.Player({
@@ -132,16 +160,7 @@ window.onSpotifyWebPlaybackSDKReady = async () => {
   }
 };
 
-// Ensure Chrome APIs are ready before handling messages
-let isReady = false;
-setTimeout(() => { isReady = true; }, 100);
-
 chrome.runtime.onMessage.addListener(async (msg) => {
-  // Wait for initialization
-  if (!isReady) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-  }
-  
   if (msg.type === 'PLAY_SPOTIFY') {
     // If SDK device is ready, transfer playback and play via Web API
     if (sdkDeviceId && msg.track && msg.track.url){
@@ -177,19 +196,23 @@ chrome.runtime.onMessage.addListener(async (msg) => {
       sdkPlayer.pause();
     }
   }
-  if (msg.type === 'LOGIN_SPOTIFY'){
-    // Handled by background
-  }
-  if (msg.type === 'IS_AUTHENTICATED'){
-    try {
-      const result = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
-      const { spotifyToken, tokenTimestamp } = result;
-      const ok = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
-      chrome.runtime.sendMessage({ type: 'AUTH_STATUS', ok });
-    } catch (e) {
-      console.error('IS_AUTHENTICATED error:', e);
-    }
-  }
 });
 
+// Log when document is fully ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ Offscreen DOM ready');
+  });
+} else {
+  console.log('✅ Offscreen DOM already ready');
+}
 
+// Test Chrome APIs immediately
+(async () => {
+  const ready = await waitForChromeApis();
+  if (ready) {
+    console.log('🚀 Offscreen document fully initialized and ready for messages');
+  } else {
+    console.error('⚠️ Offscreen document initialized but Chrome APIs unavailable');
+  }
+})();

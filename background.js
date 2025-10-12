@@ -19,8 +19,8 @@ async function generateCodeChallenge(codeVerifier) {
 }
 
 async function spotifyAuth() {
-  const extensionId = chrome.runtime.id;
-  const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
+  // MUST match what's in Spotify Dashboard exactly
+  const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
   
   // Generate PKCE code verifier and challenge
   const codeVerifier = generateRandomString(128);
@@ -38,7 +38,7 @@ async function spotifyAuth() {
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
   
-  console.log('Background auth - Extension ID:', extensionId);
+  console.log('Background auth - Extension ID:', chrome.runtime.id);
   console.log('Background auth - Redirect URI:', redirectUri);
   
   const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
