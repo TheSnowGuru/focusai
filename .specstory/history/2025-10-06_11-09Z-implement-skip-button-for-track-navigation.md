@@ -7018,3 +7018,678 @@ This should prevent the error from occurring. If you still see errors, they'll n
 
 ---
 
+_**User (2025-10-09 22:19Z)**_
+
+i don't see the login issue fixed, maybe something is wrong with the way i set the app with spotfify callback funciton or something isn't set right? help fix the login with spotify. 
+
+---
+
+_**Assistant (default)**_
+
+Let me help you debug and fix the Spotify login. Let me check the current setup and identify what might be wrong.
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/popup.js
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/popup.js
+
+---
+
+I see the issue! The redirect URI is using `chrome.runtime.id` which generates it dynamically, but your Spotify app is configured with a specific extension ID. Let me check what the actual extension ID should be and fix the login flow:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/background.js
+
+---
+
+Perfect! I found the issue. The background.js has the correct redirect URI (`https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback`), but popup.js is using a dynamic one. Let me fix the popup.js to use the correct hardcoded redirect URI and also improve the error handling:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -465,5 +465,5 @@
+  async function loginWithSpotify(){
+    const clientId = '13b4d04efb374d83892efa41680c4a3b';
+-   const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/callback`;
++   const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
+    const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+    const params = new URLSearchParams({
+```
+
+**Chunk 2**
+Lines added: 24, lines removed: 7
+
+```diff
+@@ -474,11 +474,28 @@
+    }).toString();
+    const url = `https://accounts.spotify.com/authorize?${params}`;
+-   const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+-   const hash = new URL(redirectUrl).hash.slice(1);
+-   const data = new URLSearchParams(hash);
+-   const access = data.get('access_token');
+-   if (!access) throw new Error('No access token');
+-   await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
+-   toggleViews(true);
++   
++   console.log('Starting Spotify auth with URL:', url);
++   
++   try {
++     const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
++     console.log('Received redirect URL:', redirectUrl);
++     
++     const hash = new URL(redirectUrl).hash.slice(1);
++     const data = new URLSearchParams(hash);
++     const access = data.get('access_token');
++     
++     if (!access) {
++       console.error('No access token in redirect');
++       throw new Error('No access token received from Spotify');
++     }
++     
++     console.log('Successfully received access token');
++     await chrome.storage.local.set({ spotifyToken: access, tokenTimestamp: Date.now() });
++     toggleViews(true);
++   } catch (error) {
++     console.error('Login error:', error);
++     alert('Spotify login failed. Please try again. Error: ' + error.message);
++     throw error;
++   }
+  }
+  
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/popup.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! Now let me create a simple troubleshooting guide and verify your Spotify app settings:
+
+**What I Fixed:**
+
+1. **Hardcoded Redirect URI**: Changed from dynamic `chrome.runtime.id` to the fixed `https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback`
+2. **Added Debug Logging**: Console logs will show exactly what's happening during login
+3. **Better Error Handling**: Shows an alert if login fails with the specific error message
+
+**To verify your Spotify App settings:**
+
+1. Go to https://developer.spotify.com/dashboard
+2. Click on your app
+3. Click "Edit Settings"
+4. Under "Redirect URIs", make sure you have **exactly**:
+   ```
+   https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback
+   ```
+5. Click "Save"
+
+**To test the login:**
+
+1. Open the extension popup
+2. Open Chrome DevTools (F12) and go to the Console tab
+3. Click "Login with Spotify"
+4. Watch the console for debug messages:
+   - "Starting Spotify auth with URL: ..."
+   - "Received redirect URL: ..."
+   - "Successfully received access token"
+
+If you see any errors, they'll be logged in the console with details. Let me know what error messages you see and I can help fix them!
+
+**Common issues:**
+- ❌ Redirect URI mismatch → Make sure it's exactly `https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback`
+- ❌ Extension ID changed → The redirect URI includes the extension ID `fcebfginidcappmbokiokjpgjfbmadbj`
+- ❌ Not a Premium account → Spotify Web Playback SDK requires Premium
+
+---
+
+_**User (2025-10-11 21:47Z)**_
+
+t have set a new callback url @https://nnn.prontp.com/webhook/fd07c607-9821-42a4-b7f3-5707777b94ef  to this url, i have set it in the dev dashbaord in the uri , now i wonder if we need to change it also in our code? and also i am not sure what do we need to reposnd to this callback , i set it in n8n , let me know what changes are needed. 
+
+---
+
+_**Assistant (default)**_
+
+I need to clarify something important about Spotify OAuth with Chrome extensions:
+
+**You should NOT use an external webhook URL like `https://nnn.prontp.com/webhook/...` for Chrome extension OAuth!**
+
+Chrome extensions have a special OAuth flow that uses the extension's unique ID as the redirect URI. The format must be:
+
+```
+https://[EXTENSION_ID].chromiumapp.org/callback
+```
+
+**Why this matters:**
+1. `chrome.identity.launchWebAuthFlow()` expects the redirect to come back to the extension's special URL
+2. External webhooks won't work because the auth flow needs to return to the extension
+3. Chrome extensions don't need a server-side callback - the token comes directly to the extension
+
+**What you need to do:**
+
+1. **Get your actual extension ID:**
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/shay/Documents/GitHub/focus && cat manifest.json | grep -A5 '"name"'
+```
+
+```
+  "name": "FocusAI",
+  "version": "1.0.0",
+  "description": "Click the bubble to start a 25-minute focus session with healing tracks from Spotify. Click again to stop.",                                                                                          
+  "action": {
+    "default_title": "FocusAI",
+    "default_popup": "popup.html"
+```
+
+---
+
+Let me create a simple HTML page to help you get your extension ID:
+
+---
+
+Tool use: **write**
+
+---
+
+Now let me update the code to dynamically use the correct extension ID:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.js</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -465,5 +465,6 @@
+  async function loginWithSpotify(){
+    const clientId = '13b4d04efb374d83892efa41680c4a3b';
+-   const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
++   const extensionId = chrome.runtime.id;
++   const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
+    const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+    const params = new URLSearchParams({
+```
+
+**Chunk 2**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -475,4 +476,6 @@
+    const url = `https://accounts.spotify.com/authorize?${params}`;
+    
++   console.log('Extension ID:', extensionId);
++   console.log('Redirect URI:', redirectUri);
+    console.log('Starting Spotify auth with URL:', url);
+    
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/background.js</summary>
+
+**Chunk 1**
+Lines added: 8, lines removed: 2
+
+```diff
+@@ -2,15 +2,21 @@
+  // Spotify OAuth settings
+  const SPOTIFY_CLIENT_ID = '13b4d04efb374d83892efa41680c4a3b';
+- const SPOTIFY_REDIRECT_URI = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
+  const SPOTIFY_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
+  
+  async function spotifyAuth() {
++   const extensionId = chrome.runtime.id;
++   const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
++   
+    const params = new URLSearchParams({
+      client_id: SPOTIFY_CLIENT_ID,
+      response_type: 'token',
+-     redirect_uri: SPOTIFY_REDIRECT_URI,
++     redirect_uri: redirectUri,
+      scope: SPOTIFY_SCOPES.join(' ')
+    }).toString();
+    const url = `https://accounts.spotify.com/authorize?${params}`;
++   
++   console.log('Background auth - Extension ID:', extensionId);
++   console.log('Background auth - Redirect URI:', redirectUri);
++   
+    const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+    const hash = new URL(redirectUrl).hash.slice(1);
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/popup.js`
+- `/Users/shay/Documents/GitHub/focus/background.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! Now here's what you need to do:
+
+## 🎯 Step-by-Step Instructions:
+
+### 1. Get Your Extension ID
+Open the extension and check the console (F12) when you click login. It will show:
+```
+Extension ID: [your-actual-extension-id]
+Redirect URI: https://[your-actual-extension-id].chromiumapp.org/callback
+```
+
+**OR** open `get-extension-id.html` from your extension to see it displayed nicely.
+
+### 2. Update Spotify Dashboard
+1. Go to https://developer.spotify.com/dashboard
+2. Select your FocusAI app
+3. Click "Edit Settings"
+4. Under "Redirect URIs":
+   - **REMOVE** `https://nnn.prontp.com/webhook/fd07c607-9821-42a4-b7f3-5707777b94ef`
+   - **ADD** `https://[your-extension-id].chromiumapp.org/callback`
+   - (Replace `[your-extension-id]` with your actual ID)
+5. Click "Save"
+
+### 3. Important Notes:
+
+**❌ DON'T use external webhooks** - Chrome extensions have their own special OAuth flow that redirects back to the extension itself, not to an external server.
+
+**❌ No n8n workflow needed** - The OAuth token comes directly to the extension. You don't need to handle any webhook callbacks.
+
+**✅ The code now dynamically uses your extension ID** - It will work regardless of which Chrome profile or machine you use.
+
+### 4. Test the Login:
+1. Reload the extension
+2. Open the popup
+3. Open DevTools Console (F12)
+4. Click "Login with Spotify"
+5. You should see the console logs showing your extension ID and redirect URI
+6. The Spotify login page should open
+7. After approving, you'll be redirected back to the extension
+
+The token is stored in `chrome.storage.local` and lasts for 1 hour, then it needs to be refreshed.
+
+---
+
+_**User (2025-10-11 21:47Z)**_
+
+i don't see the uri in this page....please check
+
+---
+
+_**Assistant (default)**_
+
+Let me check the get-extension-id.html file and fix it so it displays properly:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/get-extension-id.html
+
+---
+
+The issue is that the page needs to be opened as part of the extension to have access to `chrome.runtime.id`. Let me create a simpler solution - I'll add it to the manifest and create a button in the popup to show the extension ID:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.html</summary>
+
+**Chunk 1**
+Lines added: 7, lines removed: 1
+
+```diff
+@@ -65,5 +65,11 @@
+        <div class="muted" style="margin:6px 0 10px">Connect your Spotify Premium account to play full tracks.</div>
+        <button id="login-spotify" class="ghost">Login with Spotify</button>
+-       <div class="muted" style="margin-top:8px;font-size:11px">You’ll be redirected to Spotify to approve access.</div>
++       <div class="muted" style="margin-top:8px;font-size:11px">You'll be redirected to Spotify to approve access.</div>
++       
++       <div style="margin-top:12px;padding-top:12px;border-top:1px solid #232638">
++         <div class="muted" style="margin-bottom:6px;font-size:11px">Your Redirect URI for Spotify Dashboard:</div>
++         <div id="redirect-uri-display" style="background:#1d2332;padding:8px;border-radius:6px;font-size:11px;word-break:break-all;font-family:monospace;color:#7ae0ff"></div>
++         <button id="copy-redirect-uri" class="ghost" style="margin-top:6px;width:100%">Copy Redirect URI</button>
++       </div>
+      </div>
+    </div>
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.js</summary>
+
+**Chunk 1**
+Lines added: 24, lines removed: undefined
+
+```diff
+@@ -414,4 +414,28 @@
+  
+  function initAuthHandlers(){
++   // Display redirect URI
++   const extensionId = chrome.runtime.id;
++   const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
++   const redirectDisplay = document.getElementById('redirect-uri-display');
++   const copyBtn = document.getElementById('copy-redirect-uri');
++   
++   if (redirectDisplay) {
++     redirectDisplay.textContent = redirectUri;
++   }
++   
++   if (copyBtn) {
++     copyBtn.addEventListener('click', async () => {
++       try {
++         await navigator.clipboard.writeText(redirectUri);
++         copyBtn.textContent = '✅ Copied!';
++         setTimeout(() => {
++           copyBtn.textContent = 'Copy Redirect URI';
++         }, 2000);
++       } catch (e) {
++         alert('Failed to copy. URI: ' + redirectUri);
++       }
++     });
++   }
++   
+    if ($loginBtn){
+      $loginBtn.addEventListener('click', async () => {
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/popup.html`
+- `/Users/shay/Documents/GitHub/focus/popup.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! Now the redirect URI will be displayed directly in the login popup. Here's what you'll see:
+
+## ✅ What I Fixed:
+
+**Now when you open the popup and see the login screen, it will show:**
+1. A "Login with Spotify" button
+2. **Below that**: Your actual Redirect URI displayed in a code box
+3. A "Copy Redirect URI" button to easily copy it
+
+## 📋 Instructions:
+
+1. **Open the extension popup** (if you're not logged in, you'll see the login screen)
+2. **You'll see your Redirect URI displayed** like:
+   ```
+   https://[your-extension-id].chromiumapp.org/callback
+   ```
+3. **Click "Copy Redirect URI"** to copy it to your clipboard
+4. **Go to Spotify Dashboard**: https://developer.spotify.com/dashboard
+5. **Select your app** → Click "Edit Settings"
+6. **Under "Redirect URIs"**:
+   - Remove the webhook URL: `https://nnn.prontp.com/webhook/...`
+   - Paste your extension's redirect URI
+   - Click "Save"
+7. **Click "Login with Spotify"** in the popup
+
+The redirect URI will now work correctly because it matches your extension ID!
+
+**Remember**: No n8n webhook needed - Chrome extensions handle OAuth internally!
+
+---
+
+_**User (2025-10-11 21:47Z)**_
+
+ok i set it, let's test again the login, remove the get extension id and test the login process. 
+
+---
+
+_**Assistant (default)**_
+
+Perfect! Let me remove the get-extension-id.html file and then we can test the login process.
+
+---
+
+Tool use: **delete_file**
+
+Remove the helper file as it's no longer needed - the redirect URI is now shown directly in the popup
+
+---
+
+Great! Now let's test the login process. Here's what to do:
+
+## 🧪 Testing the Login Process:
+
+### 1. **Reload the Extension**
+   - Go to `chrome://extensions`
+   - Find "FocusAI"
+   - Click the refresh icon 🔄
+
+### 2. **Open DevTools Console**
+   - Click the extension icon to open the popup
+   - Press `F12` to open DevTools
+   - Go to the **Console** tab
+
+### 3. **Test Login**
+   - You should see the login screen (if no valid session exists)
+   - You should see the Redirect URI displayed in a box
+   - Click **"Login with Spotify"**
+
+### 4. **Watch the Console**
+You should see these logs:
+```
+Extension ID: [your-id]
+Redirect URI: https://[your-id].chromiumapp.org/callback
+Starting Spotify auth with URL: https://accounts.spotify.com/authorize?...
+```
+
+### 5. **What Should Happen**
+1. Spotify login window opens
+2. You approve the permissions
+3. Window closes automatically
+4. Console shows: `Received redirect URL: ...`
+5. Console shows: `Successfully received access token`
+6. Login popup disappears and you see the timer/tasks view
+
+### 6. **If It Fails**
+Check the console for error messages and let me know:
+- What error message you see
+- At what step it failed
+- Screenshot if needed
+
+Ready to test? Just reload the extension and click the login button! 🚀
+
+---
+
+_**User (2025-10-11 21:47Z)**_
+
+Spotify login failed. Please try again. Error: No access token received from Spotify
+
+---
+
+_**Assistant (default)**_
+
+The error means Spotify is redirecting back but without the access token. This usually happens when there's a mismatch or the user canceled. Let me add better debugging to see exactly what's happening:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.js</summary>
+
+**Chunk 1**
+Lines added: 20, lines removed: 2
+
+```diff
+@@ -508,11 +508,29 @@
+      console.log('Received redirect URL:', redirectUrl);
+      
+-     const hash = new URL(redirectUrl).hash.slice(1);
++     // Parse the URL to check for error or access token
++     const urlObj = new URL(redirectUrl);
++     console.log('URL pathname:', urlObj.pathname);
++     console.log('URL hash:', urlObj.hash);
++     console.log('URL search:', urlObj.search);
++     
++     // Check if there's an error in the URL
++     const errorParam = urlObj.searchParams.get('error');
++     if (errorParam) {
++       console.error('Spotify returned error:', errorParam);
++       throw new Error(`Spotify error: ${errorParam}`);
++     }
++     
++     const hash = urlObj.hash.slice(1);
++     console.log('Hash after slice:', hash);
+      const data = new URLSearchParams(hash);
+      const access = data.get('access_token');
++     
++     console.log('Parsed access token:', access ? 'Found (length: ' + access.length + ')' : 'NOT FOUND');
++     console.log('All hash params:', Array.from(data.entries()));
+      
+      if (!access) {
+        console.error('No access token in redirect');
+-       throw new Error('No access token received from Spotify');
++       console.error('Full redirect URL:', redirectUrl);
++       throw new Error('No access token received from Spotify. Check console for details.');
+      }
+      
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/popup.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! Now let's test again with much better debugging:
+
+## 🔍 Enhanced Debug Version
+
+I've added detailed logging that will show us:
+- The exact redirect URL received
+- URL pathname, hash, and search params
+- All parameters parsed from the hash
+- Whether an error was returned by Spotify
+
+## 🧪 Test Again:
+
+1. **Reload the extension** (chrome://extensions → refresh)
+2. **Open the popup**
+3. **Open DevTools Console** (F12)
+4. **Click "Login with Spotify"**
+5. **Complete the Spotify login**
+6. **Check the console output**
+
+Look for these specific logs:
+```
+Extension ID: ...
+Redirect URI: ...
+Starting Spotify auth with URL: ...
+Received redirect URL: ...
+URL pathname: ...
+URL hash: ...
+URL search: ...
+Hash after slice: ...
+All hash params: [...]
+```
+
+**Please share the console output**, especially:
+- The "Received redirect URL" line
+- The "All hash params" line
+- Any error messages
+
+This will tell us exactly what Spotify is returning and why the token isn't being found.
+
+---
+

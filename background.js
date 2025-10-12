@@ -1,17 +1,23 @@
 let keepAlive = false;
 // Spotify OAuth settings
 const SPOTIFY_CLIENT_ID = '13b4d04efb374d83892efa41680c4a3b';
-const SPOTIFY_REDIRECT_URI = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
 const SPOTIFY_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
 
 async function spotifyAuth() {
+  const extensionId = chrome.runtime.id;
+  const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
+  
   const params = new URLSearchParams({
     client_id: SPOTIFY_CLIENT_ID,
     response_type: 'token',
-    redirect_uri: SPOTIFY_REDIRECT_URI,
+    redirect_uri: redirectUri,
     scope: SPOTIFY_SCOPES.join(' ')
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
+  
+  console.log('Background auth - Extension ID:', extensionId);
+  console.log('Background auth - Redirect URI:', redirectUri);
+  
   const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
   const hash = new URL(redirectUrl).hash.slice(1);
   const data = new URLSearchParams(hash);

@@ -413,6 +413,30 @@ function celebrate(){
 }
 
 function initAuthHandlers(){
+  // Display redirect URI
+  const extensionId = chrome.runtime.id;
+  const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
+  const redirectDisplay = document.getElementById('redirect-uri-display');
+  const copyBtn = document.getElementById('copy-redirect-uri');
+  
+  if (redirectDisplay) {
+    redirectDisplay.textContent = redirectUri;
+  }
+  
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(redirectUri);
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy Redirect URI';
+        }, 2000);
+      } catch (e) {
+        alert('Failed to copy. URI: ' + redirectUri);
+      }
+    });
+  }
+  
   if ($loginBtn){
     $loginBtn.addEventListener('click', async () => {
       try {
@@ -464,7 +488,8 @@ function toggleViews(isAuthed){
 
 async function loginWithSpotify(){
   const clientId = '13b4d04efb374d83892efa41680c4a3b';
-  const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
+  const extensionId = chrome.runtime.id;
+  const redirectUri = `https://${extensionId}.chromiumapp.org/callback`;
   const scopes = ['streaming','user-read-email','user-read-private','user-modify-playback-state'];
   const params = new URLSearchParams({
     client_id: clientId,
@@ -474,19 +499,39 @@ async function loginWithSpotify(){
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
   
+  console.log('Extension ID:', extensionId);
+  console.log('Redirect URI:', redirectUri);
   console.log('Starting Spotify auth with URL:', url);
   
   try {
     const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
     console.log('Received redirect URL:', redirectUrl);
     
-    const hash = new URL(redirectUrl).hash.slice(1);
+    // Parse the URL to check for error or access token
+    const urlObj = new URL(redirectUrl);
+    console.log('URL pathname:', urlObj.pathname);
+    console.log('URL hash:', urlObj.hash);
+    console.log('URL search:', urlObj.search);
+    
+    // Check if there's an error in the URL
+    const errorParam = urlObj.searchParams.get('error');
+    if (errorParam) {
+      console.error('Spotify returned error:', errorParam);
+      throw new Error(`Spotify error: ${errorParam}`);
+    }
+    
+    const hash = urlObj.hash.slice(1);
+    console.log('Hash after slice:', hash);
     const data = new URLSearchParams(hash);
     const access = data.get('access_token');
     
+    console.log('Parsed access token:', access ? 'Found (length: ' + access.length + ')' : 'NOT FOUND');
+    console.log('All hash params:', Array.from(data.entries()));
+    
     if (!access) {
       console.error('No access token in redirect');
-      throw new Error('No access token received from Spotify');
+      console.error('Full redirect URL:', redirectUrl);
+      throw new Error('No access token received from Spotify. Check console for details.');
     }
     
     console.log('Successfully received access token');
