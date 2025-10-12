@@ -145,9 +145,10 @@
     </div>
     
     <div class="section">
-      <h2>Actions</h2>
+      <h2>Quick Actions</h2>
       <button onclick="openPopup()">Open Popup</button>
-      <button onclick="testLogin()">Test Login Flow</button>
+      <button onclick="forceLogin()" style="background: #1db954;">Force Login</button>
+      <button onclick="forceLogout()" style="background: #e74c3c;">Force Logout</button>
       <button onclick="testAPI()">Test Spotify API</button>
     </div>
     
@@ -276,10 +277,32 @@
       chrome.action.openPopup();
     }
 
-    async function testLogin() {
-      log('Testing login flow...');
-      // This will be handled by the popup
-      alert('Please use the popup to test login (click the extension icon)');
+    async function forceLogin() {
+      log('🔐 Forcing login flow...');
+      try {
+        // Clear any existing token first
+        await chrome.storage.local.remove(['spotifyToken', 'tokenTimestamp', 'spotifyRefreshToken']);
+        log('✅ Cleared existing tokens');
+        
+        // Open popup which will show login screen
+        chrome.action.openPopup();
+        log('✅ Popup opened - click the Login button or the green "Login with Spotify" button');
+      } catch (e) {
+        log('❌ Error:', e);
+      }
+    }
+
+    async function forceLogout() {
+      log('🚪 Forcing logout...');
+      try {
+        await chrome.storage.local.remove(['spotifyToken', 'tokenTimestamp', 'spotifyRefreshToken', 'spotifyCodeVerifier']);
+        log('✅ Logged out - all tokens cleared');
+        await loadStorage();
+        await checkAuth();
+        log('✅ Open popup to see login screen');
+      } catch (e) {
+        log('❌ Error:', e);
+      }
     }
 
     async function testAPI() {

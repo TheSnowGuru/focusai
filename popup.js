@@ -15,6 +15,7 @@ const $skip = document.getElementById('skip');
 const $viewTimer = document.getElementById('view-timer');
 const $viewLogin = document.getElementById('view-login');
 const $loginBtn = document.getElementById('login-spotify');
+const $authBtn = document.getElementById('auth-btn');
 // Tasks
 const $taskInput = document.getElementById('new-task');
 const $taskList = document.getElementById('task-list');
@@ -191,7 +192,33 @@ $skip.addEventListener('click', async () => {
   await initDurationSelector();
   await initTasks();
   initAuthHandlers();
+  initAuthButton();
 })();
+
+function initAuthButton() {
+  if (!$authBtn) return;
+  
+  $authBtn.addEventListener('click', async () => {
+    const isAuthed = await checkExistingSession();
+    
+    if (isAuthed) {
+      // Logout
+      if (confirm('Are you sure you want to logout?')) {
+        await chrome.storage.local.remove(['spotifyToken', 'tokenTimestamp', 'spotifyRefreshToken', 'spotifyCodeVerifier']);
+        console.log('🚪 Logged out');
+        toggleViews(false);
+      }
+    } else {
+      // Login
+      try {
+        await loginWithSpotify();
+      } catch (e) {
+        console.error('Login failed:', e);
+        alert('Login failed. Please try again.\n\nError: ' + e.message);
+      }
+    }
+  });
+}
 
 
 function startViz(){
@@ -459,6 +486,8 @@ async function checkExistingSession(){
   const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({ spotifyToken:'', tokenTimestamp: 0 });
   const hasToken = !!spotifyToken && (Date.now() - tokenTimestamp) < 3600000;
   
+  console.log('🔍 Checking session - hasToken:', hasToken);
+  
   if (hasToken) {
     // Verify token is still valid by making a test API call
     try {
@@ -466,15 +495,19 @@ async function checkExistingSession(){
         headers: { 'Authorization': 'Bearer ' + spotifyToken }
       });
       if (res.ok) {
+        const user = await res.json();
+        console.log('✅ Valid session found:', user.display_name);
         toggleViews(true);
-        return;
+        return true;
       }
     } catch (e) {
-      console.log('Token validation failed, need re-auth');
+      console.log('⚠️ Token validation failed, need re-auth');
     }
   }
   
+  console.log('❌ No valid session');
   toggleViews(false);
+    return false;
 }
 
 function toggleViews(isAuthed){
@@ -485,6 +518,17 @@ function toggleViews(isAuthed){
   }
   if ($viewLogin){
     $viewLogin.classList.toggle('hidden', !!isAuthed);
+  }
+  
+  // Update auth button
+  if ($authBtn) {
+    if (isAuthed) {
+      $authBtn.textContent = 'Logout';
+      $authBtn.style.color = '#ff6b6b';
+    } else {
+      $authBtn.textContent = 'Login';
+      $authBtn.style.color = '#1db954';
+    }
   }
   
   console.log('Timer visible:', !$viewTimer?.classList.contains('hidden'));
