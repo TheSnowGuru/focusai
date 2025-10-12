@@ -478,9 +478,17 @@ async function checkExistingSession(){
 }
 
 function toggleViews(isAuthed){
+  console.log('🔄 Toggle views - isAuthed:', isAuthed);
+  
+  if ($viewTimer) {
+    $viewTimer.classList.toggle('hidden', !isAuthed);
+  }
   if ($viewLogin){
     $viewLogin.classList.toggle('hidden', !!isAuthed);
   }
+  
+  console.log('Timer visible:', !$viewTimer?.classList.contains('hidden'));
+  console.log('Login visible:', !$viewLogin?.classList.contains('hidden'));
 }
 
 async function loginWithSpotify(){
