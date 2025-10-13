@@ -200,7 +200,7 @@ function tick(leftInitial, startTime, durationMs){
         type: 'basic',
         iconUrl: 'icons/icon128.png',
         title: 'FocusAI',
-        message: 'Time's up! Great work. Take 5–10 and come back 💪'
+        message: 'Times up! Great work. Take 5-10 and come back 💪'
       });
     }
   }, 250);
