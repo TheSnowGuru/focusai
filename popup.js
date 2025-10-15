@@ -527,7 +527,7 @@ function handleDrop(e) {
   // The actual reordering is handled in handleDragOver
   // Here we just save the new order
   const tasks = Array.from($taskList.children).map((li, index) => {
-    const taskText = li.querySelector('.task').textContent;
+    const taskText = li.querySelector('.task-title').textContent;
     return { text: taskText, done: false };
   });
   
@@ -553,116 +553,53 @@ async function initTasks(){
   const { tasks } = await chrome.storage.local.get({ tasks: [] });
   const items = Array.isArray(tasks) ? tasks : [];
   renderTasks(items);
-  $taskInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter'){
-      const text = $taskInput.value.trim();
-      if (!text) return;
-      items.push({ text, done:false });
-      $taskInput.value = '';
-      await saveTasks(items);
-      renderTasks(items);
-    }
-  });
-  $clearDone.addEventListener('click', async () => {
-    for (let i=items.length-1;i>=0;i--){ if (items[i].done) items.splice(i,1); }
-    await saveTasks(items);
-    renderTasks(items);
-  });
 }
 
 function celebrate(){
   if (!$confetti) return;
   
-  // Play explosion sound with proper volume
-  try {
-    const url = chrome.runtime.getURL('explosion-01.mp3');
-    const audio = new Audio(url);
-    audio.volume = 0.8;
-    audio.play().catch(e => console.log('Audio play failed:', e));
-  } catch (e) {
-    console.log('Audio error:', e);
-  }
+  // Play explosion sound
+  const audio = new Audio('explosion-01.mp3');
+  audio.volume = 0.7;
+  audio.play().catch(e => console.log('Audio play failed:', e));
   
-  // Create canvas for particle explosion
-  const canvas = document.createElement('canvas');
-  canvas.width = 300;
-  canvas.height = 300;
-  canvas.style.position = 'absolute';
-  canvas.style.left = '50%';
-  canvas.style.top = '-150px';
-  canvas.style.transform = 'translateX(-50%)';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '1000';
-  $confetti.appendChild(canvas);
+  // Create confetti explosion
+  const colors = ['🎉', '✨', '🎊', '💥', '🌟', '💫', '⭐', '🔥'];
+  const count = 15;
   
-  const ctx = canvas.getContext('2d');
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  
-  // Create particles
-  const particles = [];
-  const particleCount = 80;
-  const colors = ['#7ae0ff', '#9effa1', '#ffd700', '#ff6b6b', '#ff9efb', '#fff'];
-  
-  for (let i = 0; i < particleCount; i++) {
-    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
-    const velocity = 3 + Math.random() * 4;
-    particles.push({
-      x: centerX,
-      y: centerY,
-      vx: Math.cos(angle) * velocity,
-      vy: Math.sin(angle) * velocity,
-      radius: 2 + Math.random() * 4,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      life: 1,
-      decay: 0.015 + Math.random() * 0.01
-    });
-  }
-  
-  // Animate explosion
-  let frame = 0;
-  function animate() {
-    frame++;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < count; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.textContent = colors[Math.floor(Math.random() * colors.length)];
     
-    let alive = 0;
-    particles.forEach(p => {
-      if (p.life <= 0) return;
-      alive++;
-      
-      // Update position
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.15; // gravity
-      p.vx *= 0.98; // air resistance
-      p.life -= p.decay;
-      
-      // Draw particle with glow
-      ctx.globalAlpha = p.life;
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = p.color;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Add trail
-      ctx.shadowBlur = 5;
-      ctx.globalAlpha = p.life * 0.5;
-      ctx.beginPath();
-      ctx.arc(p.x - p.vx * 0.5, p.y - p.vy * 0.5, p.radius * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
+    // Random positioning and animation
+    const dx = (Math.random() - 0.5) * 200;
+    const dy = 60 + Math.random() * 40;
+    const rot = (Math.random() - 0.5) * 40;
+    const jx = (Math.random() - 0.5) * 20;
+    const jy = Math.random() * 10;
+    const jx2 = (Math.random() - 0.5) * 30;
+    const jy2 = Math.random() * 15;
     
-    if (alive > 0 && frame < 120) {
-      requestAnimationFrame(animate);
-    } else {
-      canvas.remove();
-    }
+    confetti.style.setProperty('--dx', `${dx}px`);
+    confetti.style.setProperty('--dy', `${dy}px`);
+    confetti.style.setProperty('--rot', `${rot}deg`);
+    confetti.style.setProperty('--jx', `${jx}px`);
+    confetti.style.setProperty('--jy', `${jy}px`);
+    confetti.style.setProperty('--jx2', `${jx2}px`);
+    confetti.style.setProperty('--jy2', `${jy2}px`);
+    
+    $confetti.appendChild(confetti);
+    
+    // Remove after animation
+    setTimeout(() => {
+      if (confetti.parentNode) {
+        confetti.parentNode.removeChild(confetti);
+      }
+    }, 1200);
   }
-  
-  animate();
 }
+
 
 function initAuthHandlers(){
   // Display redirect URI in the new login card
@@ -769,53 +706,83 @@ async function loginWithSpotify(){
     scope: scopes.join(' '),
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
-    show_dialog: 'false'
+    show_dialog: 'true' // Changed to true to ensure fresh auth
   }).toString();
   const url = `https://accounts.spotify.com/authorize?${params}`;
   
-  console.log('🌐 Opening Spotify authorization (identity flow)...');
+  console.log('🌐 Opening Spotify authorization...');
   
-  // Use identity flow so Chrome captures the redirect (no DNS lookup)
-  const redirectUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-  console.log('✅ Received redirect URL:', redirectUrl);
-  
-  // Parse the URL to get the authorization code
-  const urlObj = new URL(redirectUrl);
-  const code = urlObj.searchParams.get('code');
-  const errorParam = urlObj.searchParams.get('error');
-  
-  if (errorParam) throw new Error(`Spotify error: ${errorParam}`);
-  if (!code) throw new Error('No authorization code received from Spotify');
-  
-  console.log('🔄 Exchanging authorization code for access token...');
-  const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
-  if (!spotifyCodeVerifier) throw new Error('Code verifier not found in storage');
-  
-  const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-      code_verifier: spotifyCodeVerifier
-    })
-  });
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    throw new Error(`Token exchange failed: ${errorText}`);
+  try {
+    // Use identity flow so Chrome captures the redirect
+    const redirectUrl = await chrome.identity.launchWebAuthFlow({ 
+      url, 
+      interactive: true 
+    });
+    console.log('✅ Received redirect URL:', redirectUrl);
+    
+    // Parse the URL to get the authorization code
+    const urlObj = new URL(redirectUrl);
+    const code = urlObj.searchParams.get('code');
+    const errorParam = urlObj.searchParams.get('error');
+    
+    if (errorParam) {
+      console.error('Spotify OAuth error:', errorParam);
+      throw new Error(`Spotify error: ${errorParam}`);
+    }
+    if (!code) {
+      console.error('No authorization code received');
+      throw new Error('No authorization code received from Spotify');
+    }
+    
+    console.log('🔄 Exchanging authorization code for access token...');
+    const { spotifyCodeVerifier } = await chrome.storage.local.get({ spotifyCodeVerifier: '' });
+    if (!spotifyCodeVerifier) {
+      throw new Error('Code verifier not found in storage');
+    }
+    
+    // Exchange code for token immediately
+    const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: spotifyCodeVerifier
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Token exchange failed:', errorText);
+      throw new Error(`Token exchange failed: ${errorText}`);
+    }
+    
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      throw new Error('No access token in response');
+    }
+    
+    // Store token and update UI
+    await chrome.storage.local.set({ 
+      spotifyToken: tokenData.access_token, 
+      tokenTimestamp: Date.now(),
+      spotifyRefreshToken: tokenData.refresh_token || ''
+    });
+    
+    // Clear the code verifier after successful exchange
+    await chrome.storage.local.remove(['spotifyCodeVerifier']);
+    
+    toggleViews(true);
+    console.log('✅ Login complete!');
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    // Clear stored code verifier on error
+    await chrome.storage.local.remove(['spotifyCodeVerifier']);
+    throw error;
   }
-  const tokenData = await tokenResponse.json();
-  if (!tokenData.access_token) throw new Error('No access token in response');
-  
-  await chrome.storage.local.set({ 
-    spotifyToken: tokenData.access_token, 
-    tokenTimestamp: Date.now(),
-    spotifyRefreshToken: tokenData.refresh_token || ''
-  });
-  toggleViews(true);
-  console.log('✅ Login complete!');
 }
 
 // PKCE helper functions

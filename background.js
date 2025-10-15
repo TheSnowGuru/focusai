@@ -20,7 +20,8 @@ async function generateCodeChallenge(codeVerifier) {
 
 async function spotifyAuth() {
   // MUST match what's in Spotify Dashboard exactly
-  const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
+  // Use the current extension's redirect URL to avoid hardcoding the ID
+  const redirectUri = chrome.identity.getRedirectURL('callback');
   
   // Generate PKCE code verifier and challenge
   const codeVerifier = generateRandomString(128);
@@ -73,11 +74,12 @@ async function spotifyAuth() {
 
 // Intercept redirects to the chromiumapp.org redirect URI before DNS
 try {
+  const dynamicRedirect = chrome.identity.getRedirectURL('callback');
   chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     try {
       if (!details || !details.url) return;
       const url = details.url;
-      if (!url.startsWith('https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback')) return;
+      if (!url.startsWith(dynamicRedirect)) return;
       
       // Parse code and exchange immediately
       const u = new URL(url);
@@ -94,7 +96,7 @@ try {
           client_id: SPOTIFY_CLIENT_ID,
           grant_type: 'authorization_code',
           code: code,
-          redirect_uri: 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback',
+          redirect_uri: dynamicRedirect,
           code_verifier: spotifyCodeVerifier
         })
       });
