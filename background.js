@@ -101,7 +101,11 @@ try {
         })
       });
       if (!tokenResponse.ok) {
-        console.error('Token exchange failed in background intercept:', await tokenResponse.text());
+        let errText = '';
+        try { errText = await tokenResponse.text(); } catch {}
+        console.error('Token exchange failed in background intercept:', tokenResponse.status, errText);
+        // Clear verifier so a new attempt can generate a fresh one
+        try { await chrome.storage.local.remove(['spotifyCodeVerifier']); } catch {}
         return;
       }
       const tokenData = await tokenResponse.json();
