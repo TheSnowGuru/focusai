@@ -33,21 +33,7 @@
         <!-- Tab Bar -->
         <div id="tab-bar" class="tab-bar"></div>
 
-        <!-- Compact Timer Toolbar -->
-        <div class="timer-toolbar">
-          <div class="timer-left">
-            <button id="start-stop" class="primary-btn">Start</button>
-            <div id="time" class="timer-time">25:00</div>
-            <div class="duration-pills" id="duration-pills"></div>
-          </div>
-          <div class="timer-right">
-            <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
-            <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
-            <button id="next" class="ghost" aria-label="Next track">⏭️</button>
-          </div>
-        </div>
-
-        <!-- Task Section -->
+        <!-- Task Section (moved above pomodoro) -->
         <div class="task-section">
           <div class="task-header">
             <div class="task-title-section">
@@ -67,6 +53,24 @@
           </div>
 
           <div id="confetti" aria-hidden="true"></div>
+        </div>
+
+        <!-- Compact Pomodoro Section (at bottom, 1.5cm height) -->
+        <div class="pomodoro-section">
+          <div class="pomodoro-left">
+            <button id="start-stop" class="primary-btn">Start</button>
+            <div id="time" class="timer-time">25:00</div>
+            <div class="duration-controls">
+              <button id="duration-down" class="duration-btn">-</button>
+              <input id="duration-input" type="text" value="25" class="duration-input" />
+              <button id="duration-up" class="duration-btn">+</button>
+            </div>
+          </div>
+          <div class="pomodoro-right">
+            <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
+            <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
+            <button id="next" class="ghost" aria-label="Next track">⏭️</button>
+          </div>
         </div>
       </div>
     </div>

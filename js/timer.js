@@ -16,12 +16,14 @@ export class TimerManager {
       playMusic: document.getElementById('play-music'),
       prev: document.getElementById('prev'),
       next: document.getElementById('next'),
-      durationPills: document.getElementById('duration-pills')
+      durationInput: document.getElementById('duration-input'),
+      durationUp: document.getElementById('duration-up'),
+      durationDown: document.getElementById('duration-down')
     };
     
     this.isMusicPlaying = false;
     this.initEventListeners();
-    this.initDurationSelector();
+    this.initDurationControls();
     this.restoreState();
   }
 
@@ -40,6 +42,19 @@ export class TimerManager {
     
     if (this.elements.next) {
       this.elements.next.addEventListener('click', () => this.nextTrack());
+    }
+
+    if (this.elements.durationUp) {
+      this.elements.durationUp.addEventListener('click', () => this.incrementDuration());
+    }
+
+    if (this.elements.durationDown) {
+      this.elements.durationDown.addEventListener('click', () => this.decrementDuration());
+    }
+
+    if (this.elements.durationInput) {
+      this.elements.durationInput.addEventListener('change', () => this.updateDurationFromInput());
+      this.elements.durationInput.addEventListener('blur', () => this.updateDurationFromInput());
     }
   }
 
@@ -215,39 +230,51 @@ export class TimerManager {
     }
   }
 
-  async initDurationSelector() {
-    if (!this.elements.durationPills) return;
+  async initDurationControls() {
+    if (!this.elements.durationInput) return;
     
     const { durationMs } = await StorageManager.getTimerState();
     const minutes = Math.round((durationMs / 60000));
-    this.DURATION_MINUTES = Math.max(5, Math.min(30, minutes - (minutes % 5) || minutes));
+    this.DURATION_MINUTES = Math.max(5, Math.min(60, minutes));
     
-    const durations = [5, 10, 15, 20, 25, 30];
-    this.elements.durationPills.innerHTML = '';
+    this.elements.durationInput.value = this.DURATION_MINUTES;
+  }
+
+  async incrementDuration() {
+    this.DURATION_MINUTES = Math.min(60, this.DURATION_MINUTES + 5);
+    this.elements.durationInput.value = this.DURATION_MINUTES;
+    await this.updateDuration();
+  }
+
+  async decrementDuration() {
+    this.DURATION_MINUTES = Math.max(5, this.DURATION_MINUTES - 5);
+    this.elements.durationInput.value = this.DURATION_MINUTES;
+    await this.updateDuration();
+  }
+
+  async updateDurationFromInput() {
+    const value = parseInt(this.elements.durationInput.value);
+    if (value >= 5 && value <= 60) {
+      this.DURATION_MINUTES = value;
+      await this.updateDuration();
+    } else {
+      // Reset to current value if invalid
+      this.elements.durationInput.value = this.DURATION_MINUTES;
+    }
+  }
+
+  async updateDuration() {
+    const { isRunning, startTime } = await StorageManager.getTimerState();
+    const durationMsNew = this.DURATION_MINUTES * 60 * 1000;
+    await StorageManager.setTimerState({ durationMs: durationMsNew });
     
-    durations.forEach(min => {
-      const btn = document.createElement('button');
-      btn.className = `duration-btn ${min === this.DURATION_MINUTES ? 'active' : ''}`;
-      btn.textContent = `${min}m`;
-      btn.addEventListener('click', async () => {
-        this.DURATION_MINUTES = min;
-        this.elements.durationPills.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        const { isRunning, startTime } = await StorageManager.getTimerState();
-        const durationMsNew = this.DURATION_MINUTES * 60 * 1000;
-        await StorageManager.setTimerState({ durationMs: durationMsNew });
-        
-        if (isRunning && startTime) {
-          await this.startTimer();
-        } else {
-          if (this.elements.time) {
-            this.elements.time.textContent = this.formatTime(this.DURATION_MINUTES * 60 * 1000);
-          }
-        }
-      });
-      this.elements.durationPills.appendChild(btn);
-    });
+    if (isRunning && startTime) {
+      await this.startTimer();
+    } else {
+      if (this.elements.time) {
+        this.elements.time.textContent = this.formatTime(this.DURATION_MINUTES * 60 * 1000);
+      }
+    }
   }
 
   formatTime(ms) {

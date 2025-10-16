@@ -143,18 +143,29 @@ export class TabManager {
   }
 
   async addTask() {
+    console.log('addTask called');
     const input = this.elements.addTaskInput;
-    if (!input) return;
+    if (!input) {
+      console.log('No input element found');
+      return;
+    }
 
     const text = input.value.trim();
-    if (!text) return;
+    console.log('Task text:', text);
+    if (!text) {
+      console.log('No text to add');
+      return;
+    }
 
     await this.addTaskToActiveTab(text);
     input.value = '';
+    console.log('Task added successfully');
   }
 
   async handleAddTaskKeydown(e) {
+    console.log('Key pressed:', e.key);
     if (e.key === 'Enter') {
+      console.log('Enter key detected, calling addTask');
       await this.addTask();
     }
   }
