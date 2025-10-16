@@ -112,25 +112,31 @@ export class TabManager {
   }
 
   async switchTab(tabId) {
-    console.log('=== SWITCH TAB DEBUG ===');
-    console.log('switchTab called with:', tabId);
-    console.log('Previous active tab:', this.activeTab);
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🔄 SWITCH TAB - START');
+    console.log('═══════════════════════════════════════');
+    console.log('From:', this.activeTab);
+    console.log('To:', tabId);
     
-    // Get current tasks before switching
-    const tasksBeforeSwitch = await StorageManager.getTasks();
-    console.log('Tasks before tab switch:', tasksBeforeSwitch);
+    // Get tasks BEFORE switching
+    const tasksBefore = await StorageManager.getTasks();
+    console.log('Tasks BEFORE switch:', tasksBefore);
     
     this.activeTab = tabId;
     await StorageManager.setActiveTab(tabId);
     this.setActiveTab(tabId);
+    
+    // Get tasks AFTER switching
+    const tasksAfter = await StorageManager.getTasks();
+    console.log('Tasks AFTER switch:', tasksAfter);
+    
     await this.loadTasksForTab(tabId);
     
-    // Get tasks after switching
-    const tasksAfterSwitch = await StorageManager.getTasks();
-    console.log('Tasks after tab switch:', tasksAfterSwitch);
-    
-    console.log('Tab switched to:', tabId);
-    console.log('=== END SWITCH TAB DEBUG ===');
+    console.log('═══════════════════════════════════════');
+    console.log('🔄 SWITCH TAB - END');
+    console.log('═══════════════════════════════════════');
+    console.log('');
   }
 
   setActiveTab(tabId) {
@@ -149,101 +155,109 @@ export class TabManager {
   }
 
   async loadTasksForTab(tabId) {
-    console.log('=== LOAD TASKS FOR TAB DEBUG ===');
-    console.log('Loading tasks for tab:', tabId);
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('📂 LOAD TASKS FOR TAB - START');
+    console.log('═══════════════════════════════════════');
+    console.log('Tab ID:', tabId);
     
     const tasks = await StorageManager.getTasks();
     console.log('All tasks from storage:', tasks);
     
     const tabTasks = tasks[tabId] || [];
-    console.log('Tasks for tab', tabId, ':', tabTasks);
-    console.log('Number of tasks for tab:', tabTasks.length);
+    console.log('Tasks for tab [' + tabId + ']:', tabTasks);
+    console.log('Number of tasks:', tabTasks.length);
     
     if (this.elements.taskList) {
-      console.log('Task list element found, rendering tasks');
+      console.log('Rendering tasks...');
       this.renderTasks(tabTasks);
+      console.log('✅ Rendered');
     } else {
-      console.log('No task list element found!');
+      console.log('❌ No taskList element found');
     }
-    console.log('=== END LOAD TASKS FOR TAB DEBUG ===');
+    
+    console.log('═══════════════════════════════════════');
+    console.log('📂 LOAD TASKS FOR TAB - END');
+    console.log('═══════════════════════════════════════');
+    console.log('');
   }
 
   async addTask() {
-    console.log('addTask called');
     const input = this.elements.addTaskInput;
-    if (!input) {
-      console.log('No input element found');
-      return;
-    }
+    if (!input) return;
 
     const text = input.value.trim();
-    console.log('Task text:', text);
-    if (!text) {
-      console.log('No text to add');
-      return;
-    }
+    if (!text) return;
 
     // Clear input first
     input.value = '';
     
     await this.addTaskToActiveTab(text);
-    console.log('Task added successfully');
   }
 
   async handleAddTaskKeydown(e) {
-    console.log('Key pressed:', e.key);
     if (e.key === 'Enter') {
-      console.log('Enter key detected, calling addTask');
       await this.addTask();
     }
   }
 
   async addTaskToActiveTab(taskText) {
     try {
-      console.log('addTaskToActiveTab called with:', taskText);
+      console.log('');
+      console.log('═══════════════════════════════════════');
+      console.log('➕ ADD TASK - START');
+      console.log('═══════════════════════════════════════');
+      console.log('Task text:', taskText);
       console.log('Active tab:', this.activeTab);
-      console.log('Task list element:', this.elements.taskList);
       
       const tasks = await StorageManager.getTasks();
-      console.log('Current tasks from storage:', tasks);
+      console.log('Current tasks structure:', tasks);
       
+      // Ensure tab array exists
       if (!tasks[this.activeTab]) {
+        console.log('Creating new array for tab:', this.activeTab);
         tasks[this.activeTab] = [];
-        console.log('Created new tab array for:', this.activeTab);
       }
       
+      console.log('Tasks in active tab before add:', tasks[this.activeTab].length);
+      
+      // Create new task
       const newTask = {
         text: taskText,
         done: false,
         createdAt: Date.now()
       };
+      console.log('New task:', newTask);
       
+      // Add to the current tab's task list
       tasks[this.activeTab].push(newTask);
-      console.log('Added task to array:', newTask);
-      console.log('Updated tasks object:', tasks);
-
-      const success = await StorageManager.setTasks(tasks);
-      console.log('Storage save success:', success);
+      console.log('✅ Task added to array. New count:', tasks[this.activeTab].length);
+      console.log('Updated tasks:', tasks[this.activeTab]);
       
-      // Verify the save worked
-      const savedTasks = await StorageManager.getTasks();
-      console.log('Tasks after save:', savedTasks);
+      // Save to storage
+      console.log('Saving to storage...');
+      await StorageManager.setTasks(tasks);
+      console.log('✅ Saved to storage');
       
-      // Force immediate rendering
-      console.log('About to call loadTasksForTab...');
-      await this.loadTasksForTab(this.activeTab);
-      console.log('Tasks loaded for tab:', this.activeTab);
+      // Force a small delay to ensure storage completes
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Also try direct rendering as a test
-      console.log('Direct rendering test...');
+      // Render the updated tasks
+      console.log('Rendering tasks...');
       this.renderTasks(tasks[this.activeTab]);
+      console.log('✅ Rendered');
       
       // Update motivation after adding task
       const { UIManager } = await import('./ui.js');
       UIManager.updateMotivation();
       
+      console.log('═══════════════════════════════════════');
+      console.log('➕ ADD TASK - END');
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('❌ Error adding task:', error);
     }
   }
 
@@ -329,22 +343,24 @@ export class TabManager {
   }
 
   renderTasks(tasks) {
-    console.log('renderTasks called with:', tasks);
+    console.log('🎨 renderTasks called with', tasks.length, 'tasks:', tasks);
+    
     if (!this.elements.taskList) {
-      console.log('No taskList element found');
+      console.log('❌ No taskList element found');
       return;
     }
     
-    console.log('Clearing task list and rendering', tasks.length, 'tasks');
+    console.log('Clearing task list...');
     this.elements.taskList.innerHTML = '';
     
+    console.log('Creating task elements...');
     tasks.forEach((task, index) => {
-      console.log('Creating task element for:', task);
+      console.log('  Creating element for task', index, ':', task.text);
       const taskElement = this.createTaskElement(task, index);
       this.elements.taskList.appendChild(taskElement);
     });
     
-    console.log('Task list now has', this.elements.taskList.children.length, 'children');
+    console.log('✅ Rendered', this.elements.taskList.children.length, 'task elements');
   }
 
   createTaskElement(task, index) {
@@ -417,52 +433,62 @@ export class TabManager {
     if (tasks[this.activeTab] && tasks[this.activeTab][index]) {
       tasks[this.activeTab][index].text = newText;
       await StorageManager.setTasks(tasks);
-      await this.loadTasksForTab(this.activeTab);
+      // Render directly to avoid race conditions
+      this.renderTasks(tasks[this.activeTab]);
     }
   }
 
   async completeTask(index) {
-    console.log('=== COMPLETE TASK DEBUG ===');
-    console.log('completeTask called with index:', index);
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🎯 COMPLETE TASK - START');
+    console.log('═══════════════════════════════════════');
+    console.log('Index to complete:', index);
     console.log('Active tab:', this.activeTab);
-    console.log('Task list element:', this.elements.taskList);
-    
-    // Import UIManager for celebrate effect
-    const { UIManager } = await import('./ui.js');
-    UIManager.celebrate();
     
     const tasks = await StorageManager.getTasks();
-    console.log('Tasks before completion:', tasks);
-    console.log('Tasks for active tab:', tasks[this.activeTab]);
+    console.log('Current tasks structure:', tasks);
+    console.log('Tasks for active tab [' + this.activeTab + ']:', tasks[this.activeTab]);
     console.log('Number of tasks in active tab:', tasks[this.activeTab]?.length || 0);
     
-    if (tasks[this.activeTab] && tasks[this.activeTab][index]) {
-      console.log('Task to remove:', tasks[this.activeTab][index]);
-      console.log('Removing task at index:', index);
+    if (tasks[this.activeTab] && tasks[this.activeTab][index] !== undefined) {
+      const taskToRemove = tasks[this.activeTab][index];
+      console.log('✅ Task found at index ' + index + ':', taskToRemove.text);
       
+      // Remove the task
+      console.log('Removing task from array...');
       tasks[this.activeTab].splice(index, 1);
-      console.log('Tasks after removal:', tasks);
-      console.log('Number of tasks after removal:', tasks[this.activeTab].length);
+      console.log('✅ Task removed. Remaining tasks:', tasks[this.activeTab].length);
+      console.log('Remaining tasks:', tasks[this.activeTab]);
       
-      const saveResult = await StorageManager.setTasks(tasks);
-      console.log('Storage save result:', saveResult);
+      // Save to storage
+      console.log('Saving to storage...');
+      await StorageManager.setTasks(tasks);
+      console.log('✅ Saved to storage');
       
-      // Verify the save worked
-      const savedTasks = await StorageManager.getTasks();
-      console.log('Tasks after save verification:', savedTasks);
-      console.log('Number of tasks after save:', savedTasks[this.activeTab]?.length || 0);
+      // Force a small delay to ensure storage completes
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      await this.loadTasksForTab(this.activeTab);
-      console.log('Tasks reloaded for tab');
+      // Render the updated tasks
+      console.log('Rendering updated tasks...');
+      this.renderTasks(tasks[this.activeTab]);
+      console.log('✅ Rendered');
       
-      // Final verification
-      const finalTasks = await StorageManager.getTasks();
-      console.log('Final tasks state:', finalTasks);
-      console.log('=== END COMPLETE TASK DEBUG ===');
+      // Show celebrate effect AFTER updating the list
+      const { UIManager } = await import('./ui.js');
+      UIManager.celebrate();
+      UIManager.updateMotivation();
+      
+      console.log('═══════════════════════════════════════');
+      console.log('🎯 COMPLETE TASK - END');
+      console.log('═══════════════════════════════════════');
+      console.log('');
     } else {
-      console.log('Task not found at index:', index);
-      console.log('Available tasks:', tasks[this.activeTab]);
-      console.log('=== END COMPLETE TASK DEBUG ===');
+      console.log('❌ ERROR: Task not found at index:', index);
+      console.log('Active tab:', this.activeTab);
+      console.log('Tasks available:', tasks[this.activeTab]);
+      console.log('═══════════════════════════════════════');
+      console.log('');
     }
   }
 

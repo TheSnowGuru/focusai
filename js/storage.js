@@ -42,16 +42,19 @@ export class StorageManager {
 
   // Task-specific storage methods
   static async getTasks() {
-    console.log('StorageManager.getTasks called');
     const { tasks } = await this.get({ tasks: {} });
-    console.log('StorageManager.getTasks result:', tasks);
+    console.log('📥 getTasks:', JSON.stringify(tasks));
     return tasks || {};
   }
 
   static async setTasks(tasks) {
-    console.log('StorageManager.setTasks called with:', tasks);
+    console.log('💾 setTasks:', JSON.stringify(tasks));
     const result = await this.set({ tasks });
-    console.log('StorageManager.setTasks result:', result);
+    
+    // Verify the save worked
+    const verification = await chrome.storage.local.get('tasks');
+    console.log('✅ Verified saved tasks:', JSON.stringify(verification.tasks));
+    
     return result;
   }
 
