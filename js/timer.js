@@ -79,16 +79,22 @@ export class TimerManager {
     clearInterval(this.ticking);
     this.ticking = null;
     
+    // Calculate remaining time
+    const remainingTime = await this.getRemainingTime();
+    console.log('⏸️ Pausing timer. Remaining time:', remainingTime, 'ms');
+    
     // Store paused state
     this.isPaused = true;
+    this.pausedTimeRemaining = remainingTime;
+    
     await StorageManager.setTimerState({ 
       isRunning: false, 
       isPaused: true,
-      pausedTimeRemaining: this.pausedTimeRemaining || await this.getRemainingTime()
+      pausedTimeRemaining: remainingTime
     });
     
     this.setRunningUI(false);
-    console.log('⏸️ Timer paused');
+    console.log('⏸️ Timer paused at', remainingTime, 'ms remaining');
   }
 
   async resumeTimer() {

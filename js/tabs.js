@@ -228,6 +228,7 @@ export class TabManager {
       
       // Create new task
       const newTask = {
+        id: crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         text: taskText,
         done: false,
         createdAt: Date.now()
@@ -362,6 +363,9 @@ export class TabManager {
     tasks.forEach((task, index) => {
       console.log('  Creating element for task', index, ':', task.text);
       const taskElement = this.createTaskElement(task, index);
+      if (task.id) {
+        taskElement.dataset.id = task.id;
+      }
       this.elements.taskList.appendChild(taskElement);
     });
     
@@ -412,7 +416,7 @@ export class TabManager {
     editBtn.addEventListener('click', async () => {
       const newText = prompt('Edit task:', task.text);
       if (newText && newText.trim()) {
-        await this.editTask(index, newText.trim());
+        await this.editTaskById(task.id, newText.trim());
       }
     });
     
@@ -420,7 +424,7 @@ export class TabManager {
     completeBtn.className = 'complete-btn';
     completeBtn.textContent = 'Complete';
     completeBtn.addEventListener('click', async () => {
-      await this.completeTask(index);
+      await this.completeTaskById(task.id);
     });
     
     actions.appendChild(editBtn);
@@ -434,12 +438,24 @@ export class TabManager {
   }
 
   async editTask(index, newText) {
+    // kept for backward compatibility if called elsewhere
     const tasks = await StorageManager.getTasks();
     if (tasks[this.activeTab] && tasks[this.activeTab][index]) {
       tasks[this.activeTab][index].text = newText;
       await StorageManager.setTasks(tasks);
-      // Render directly to avoid race conditions
       this.renderTasks(tasks[this.activeTab]);
+    }
+  }
+
+  async editTaskById(taskId, newText) {
+    const all = await StorageManager.getTasks();
+    const list = all[this.activeTab] || [];
+    const idx = list.findIndex(t => t.id === taskId);
+    if (idx >= 0) {
+      list[idx].text = newText;
+      all[this.activeTab] = list;
+      await StorageManager.setTasks(all);
+      this.renderTasks(list);
     }
   }
 
@@ -505,6 +521,73 @@ export class TabManager {
     }
   }
 
+  async completeTaskById(taskId) {
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('🎯 COMPLETE TASK (BY ID) - START');
+    console.log('═══════════════════════════════════════');
+    console.log('Task ID to complete:', taskId);
+    console.log('Active tab:', this.activeTab);
+    
+    if (!taskId) {
+      console.log('❌ ERROR: No task ID provided!');
+      console.log('═══════════════════════════════════════');
+      return;
+    }
+    
+    const all = await StorageManager.getTasks();
+    console.log('All tasks from storage:', all);
+    const list = all[this.activeTab] || [];
+    console.log('Tasks in active tab:', list);
+    console.log('Current list length:', list.length);
+    console.log('Looking for task with ID:', taskId);
+    console.log('Task IDs in list:', list.map(t => t.id));
+    
+    const idx = list.findIndex(t => t.id === taskId);
+    console.log('Index found:', idx);
+    
+    if (idx >= 0) {
+      const removed = list.splice(idx, 1)[0];
+      console.log('✅ Removing task:', removed?.text);
+      all[this.activeTab] = list;
+      
+      // Optimistic DOM removal
+      console.log('Removing from DOM...');
+      try {
+        const li = this.elements.taskList?.querySelector(`li[data-id="${taskId}"]`);
+        console.log('Found DOM element:', !!li);
+        if (li && li.parentNode) {
+          li.parentNode.removeChild(li);
+          console.log('✅ Removed from DOM');
+        }
+      } catch (e) {
+        console.log('❌ DOM removal error:', e);
+      }
+      
+      console.log('Saving to storage...');
+      await StorageManager.setTasks(all);
+      console.log('✅ Saved to storage');
+      
+      console.log('Rendering tasks...');
+      this.renderTasks(list);
+      console.log('✅ Rendered');
+      
+      console.log('Showing celebration...');
+      const { UIManager } = await import('./ui.js');
+      UIManager.celebrate();
+      UIManager.updateMotivation();
+      console.log('✅ Celebration shown');
+      
+      console.log('🎯 COMPLETE TASK (BY ID) - END');
+      console.log('═══════════════════════════════════════');
+    } else {
+      console.log('❌ Task ID not found in current tab!');
+      console.log('Searched for:', taskId);
+      console.log('Available IDs:', list.map(t => t.id));
+      console.log('═══════════════════════════════════════');
+    }
+  }
+
   // Drag and drop functionality
   handleDragStart(e) {
     e.target.classList.add('dragging');
@@ -535,13 +618,18 @@ export class TabManager {
 
   async handleDrop(e) {
     e.preventDefault();
-    const tasks = Array.from(this.elements.taskList.children).map((li, index) => {
-      const taskText = li.querySelector('.task-title').textContent;
-      return { text: taskText, done: false, createdAt: Date.now() };
+    const allTasks = await StorageManager.getTasks();
+    const currentList = allTasks[this.activeTab] || [];
+    const idToTask = new Map(currentList.map(t => [t.id, t]));
+    
+    const reordered = Array.from(this.elements.taskList.children).map((li) => {
+      const id = li.dataset.id;
+      const text = li.querySelector('.task-title')?.textContent || '';
+      const prev = idToTask.get(id) || { id, text, done: false, createdAt: Date.now() };
+      return { id, text, done: !!prev.done, createdAt: prev.createdAt || Date.now() };
     });
     
-    const allTasks = await StorageManager.getTasks();
-    allTasks[this.activeTab] = tasks;
+    allTasks[this.activeTab] = reordered;
     await StorageManager.setTasks(allTasks);
   }
 

@@ -1,12 +1,23 @@
 // Storage management utilities
 export class StorageManager {
-  static async get(key, defaultValue = null) {
+  static async get(keys, defaultValue = null) {
     try {
-      const result = await chrome.storage.local.get(key);
-      return typeof key === 'string' ? (result[key] || defaultValue) : result;
+      const result = await chrome.storage.local.get(keys);
+      
+      // If keys is an object (default values), merge with result
+      if (typeof keys === 'object' && !Array.isArray(keys)) {
+        return { ...keys, ...result };
+      }
+      
+      // If keys is a string, return that specific value or defaultValue
+      if (typeof keys === 'string') {
+        return result[keys] !== undefined ? result[keys] : defaultValue;
+      }
+      
+      return result;
     } catch (error) {
       console.error('Storage get error:', error);
-      return defaultValue;
+      return typeof keys === 'object' && !Array.isArray(keys) ? keys : defaultValue;
     }
   }
 
