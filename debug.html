@@ -1,356 +1,402 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>FocusAI Debug</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusAI - Debug Mode</title>
+  <link rel="stylesheet" href="popup.css">
   <style>
+    /* Debug-specific styles */
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       margin: 0;
       padding: 20px;
-      color: #fff;
+      background: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    .container {
-      max-width: 800px;
+
+    .debug-container {
+      max-width: 400px;
       margin: 0 auto;
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-    h1 {
-      margin: 0 0 20px 0;
-      font-size: 32px;
-      font-weight: 700;
-    }
-    .section {
-      background: rgba(255, 255, 255, 0.1);
+      background: white;
       border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
-    .section h2 {
-      margin: 0 0 15px 0;
-      font-size: 20px;
+
+    .debug-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .debug-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 24px;
+    }
+
+    .debug-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
       font-weight: 600;
     }
-    .info-row {
+
+    .debug-console {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 400px;
+      max-height: 300px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 8px;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 9999;
+    }
+
+    .debug-console-header {
       display: flex;
       justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #333;
     }
-    .info-row:last-child {
-      border-bottom: none;
+
+    .debug-console-title {
+      font-weight: bold;
+      color: #4ec9b0;
     }
-    .label {
-      font-weight: 600;
-      opacity: 0.8;
-    }
-    .value {
-      font-family: 'Courier New', monospace;
-      word-break: break-all;
-    }
-    button {
-      background: #1db954;
+
+    .debug-console-clear {
+      background: #333;
       color: white;
       border: none;
-      padding: 12px 24px;
-      border-radius: 25px;
-      font-size: 16px;
-      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
       cursor: pointer;
-      margin: 5px;
-      transition: all 0.2s;
+      font-size: 10px;
     }
-    button:hover {
-      background: #1ed760;
-      transform: scale(1.05);
+
+    .debug-console-clear:hover {
+      background: #444;
     }
-    button:disabled {
-      background: #666;
-      cursor: not-allowed;
-      transform: none;
+
+    .debug-log {
+      margin: 5px 0;
+      line-height: 1.4;
     }
-    .status {
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-weight: 600;
-      display: inline-block;
-      margin: 10px 0;
+
+    .debug-log.info { color: #569cd6; }
+    .debug-log.success { color: #4ec9b0; }
+    .debug-log.warning { color: #dcdcaa; }
+    .debug-log.error { color: #f48771; }
+
+    .app {
+      /* Override extension-specific sizing */
+      width: 100% !important;
+      min-height: 500px !important;
     }
-    .status.good {
-      background: rgba(29, 185, 84, 0.3);
-    }
-    .status.bad {
-      background: rgba(255, 107, 107, 0.3);
-    }
-    pre {
-      background: rgba(0, 0, 0, 0.3);
+
+    /* Storage indicator */
+    .storage-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
       padding: 15px;
       border-radius: 8px;
-      overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       font-size: 12px;
-      line-height: 1.5;
+      max-width: 300px;
     }
-    .copy-btn {
-      background: rgba(255, 255, 255, 0.2);
+
+    .storage-indicator h3 {
+      margin: 0 0 10px 0;
       font-size: 14px;
-      padding: 8px 16px;
+      color: #667eea;
+    }
+
+    .storage-item {
+      margin: 5px 0;
+      padding: 5px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔍 FocusAI Debug Panel</h1>
-    
-    <div class="section">
-      <h2>Extension Info</h2>
-      <div class="info-row">
-        <span class="label">Extension ID:</span>
-        <span class="value" id="ext-id">-</span>
+  <div class="debug-header">
+    <h1>🔍 FocusAI Debug Mode</h1>
+    <span class="debug-badge">localStorage Testing</span>
+  </div>
+
+  <div class="debug-container">
+    <div class="app" id="app">
+      <!-- Timer View -->
+      <div id="view-timer">
+        <!-- Motivation Header -->
+        <div id="motivation" class="motivation-header">
+          <span id="motivation-text">Add your first task</span>
+        </div>
+
+        <div class="main-content">
+          <!-- Tab Bar -->
+          <div id="tab-bar" class="tab-bar"></div>
+
+          <!-- Task Section -->
+          <div class="task-section">
+            <div class="task-header">
+              <div class="task-title-section">
+                <h2>My Tasks</h2>
+                <div class="drag-hint" title="Drag tasks to reorder by importance">⋮⋮</div>
+              </div>
+            </div>
+
+            <!-- Inline Add Task Input -->
+            <div class="add-task-row">
+              <input id="add-task-input" type="text" placeholder="Add a task and press Enter" />
+              <button id="add-task-btn" class="primary-btn"><span class="btn-icon">+</span> Add</button>
+            </div>
+
+            <div class="tasks-container">
+              <ul id="task-list"></ul>
+            </div>
+
+            <div id="confetti" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <!-- Pomodoro Footer (at very bottom) -->
+        <div class="pomodoro-footer">
+          <div class="pomodoro-left">
+            <button id="start-stop" class="primary-btn">Start</button>
+            <div id="time" class="timer-time">25:00</div>
+            <div class="duration-controls">
+              <button id="duration-down" class="duration-btn">-</button>
+              <input id="duration-input" type="text" value="25" class="duration-input" />
+              <button id="duration-up" class="duration-btn">+</button>
+            </div>
+          </div>
+          <div class="pomodoro-right">
+            <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
+            <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
+            <button id="next" class="ghost" aria-label="Next track">⏭️</button>
+          </div>
+        </div>
       </div>
-      <div class="info-row">
-        <span class="label">Redirect URI:</span>
-        <span class="value" id="redirect-uri">-</span>
+
+      <!-- Hidden Spotify Player -->
+      <div id="spotify-player" class="spotify-player hidden">
+        <div class="player-header">
+          <span class="player-title">Now Playing</span>
+          <button id="close-player" class="close-btn">×</button>
+        </div>
+        <div id="spotify-embed" class="spotify-embed"></div>
       </div>
-      <button class="copy-btn" onclick="copyRedirectUri()">Copy Redirect URI</button>
-    </div>
-    
-    <div class="section">
-      <h2>Authentication Status</h2>
-      <div id="auth-status" class="status bad">Not Authenticated</div>
-      <div class="info-row">
-        <span class="label">Token Exists:</span>
-        <span class="value" id="has-token">-</span>
+
+      <!-- Login View (hidden by default in debug mode) -->
+      <div id="view-login" class="login-card hidden">
+        <div class="login-content">
+          <h2>Login to Spotify</h2>
+          <p>Connect your Spotify account to play focus music during your sessions.</p>
+          <button id="login-spotify" class="spotify-btn">
+            Login with Spotify
+          </button>
+          <div class="redirect-info">
+            Redirect URI: <code id="redirect-uri">Debug Mode - No OAuth</code>
+          </div>
+        </div>
       </div>
-      <div class="info-row">
-        <span class="label">Token Age:</span>
-        <span class="value" id="token-age">-</span>
-      </div>
-      <div class="info-row">
-        <span class="label">Token Expires In:</span>
-        <span class="value" id="token-expires">-</span>
-      </div>
-      <button onclick="testToken()">Test Token</button>
-      <button onclick="clearToken()" style="background: #e74c3c;">Clear Token</button>
-    </div>
-    
-    <div class="section">
-      <h2>Storage Contents</h2>
-      <pre id="storage-contents">Loading...</pre>
-      <button onclick="loadStorage()">Refresh Storage</button>
-    </div>
-    
-    <div class="section">
-      <h2>Quick Actions</h2>
-      <button onclick="openPopup()">Open Popup</button>
-      <button onclick="forceLogin()" style="background: #1db954;">Force Login</button>
-      <button onclick="forceLogout()" style="background: #e74c3c;">Force Logout</button>
-      <button onclick="testAPI()">Test Spotify API</button>
-    </div>
-    
-    <div class="section">
-      <h2>Console Output</h2>
-      <pre id="console-output"></pre>
     </div>
   </div>
 
-  <script>
-    const log = (...args) => {
-      const output = document.getElementById('console-output');
-      const line = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : a).join(' ');
-      output.textContent += line + '\n';
-      console.log(...args);
+  <!-- Debug Console -->
+  <div class="debug-console" id="debug-console">
+    <div class="debug-console-header">
+      <span class="debug-console-title">📋 Debug Console</span>
+      <button class="debug-console-clear" onclick="clearDebugConsole()">Clear</button>
+    </div>
+    <div id="debug-logs"></div>
+  </div>
+
+  <!-- Storage Indicator -->
+  <div class="storage-indicator">
+    <h3>💾 localStorage State</h3>
+    <div id="storage-display"></div>
+  </div>
+
+  <script type="module">
+    // Mock Chrome APIs for debugging
+    window.chrome = {
+      storage: {
+        local: {
+          get: async (keys) => {
+            const result = {};
+            if (typeof keys === 'object' && !Array.isArray(keys)) {
+              for (const key in keys) {
+                const stored = localStorage.getItem(key);
+                result[key] = stored ? JSON.parse(stored) : keys[key];
+              }
+            } else {
+              const keysArray = Array.isArray(keys) ? keys : [keys];
+              for (const key of keysArray) {
+                const stored = localStorage.getItem(key);
+                if (stored) result[key] = JSON.parse(stored);
+              }
+            }
+            debugLog('📥 storage.get', result, 'info');
+            updateStorageDisplay();
+            return result;
+          },
+          set: async (items) => {
+            for (const key in items) {
+              localStorage.setItem(key, JSON.stringify(items[key]));
+            }
+            debugLog('💾 storage.set', items, 'success');
+            updateStorageDisplay();
+            return true;
+          },
+          remove: async (keys) => {
+            const keysArray = Array.isArray(keys) ? keys : [keys];
+            for (const key of keysArray) {
+              localStorage.removeItem(key);
+            }
+            debugLog('🗑️ storage.remove', keysArray, 'warning');
+            updateStorageDisplay();
+            return true;
+          },
+          clear: async () => {
+            localStorage.clear();
+            debugLog('🗑️ storage.clear', 'All cleared', 'warning');
+            updateStorageDisplay();
+            return true;
+          }
+        }
+      },
+      runtime: {
+        getURL: (path) => path,
+        sendMessage: async (message) => {
+          debugLog('📤 sendMessage', message, 'info');
+          return { ok: true };
+        }
+      },
+      alarms: {
+        create: (name, alarmInfo) => {
+          debugLog('⏰ alarm.create', { name, alarmInfo }, 'info');
+        },
+        clear: (name, callback) => {
+          debugLog('⏰ alarm.clear', name, 'info');
+          if (callback) callback();
+        }
+      },
+      identity: {
+        getRedirectURL: (path) => `https://debug.local/${path}`
+      },
+      tabs: {
+        create: async (options) => {
+          debugLog('🌐 tabs.create', options, 'info');
+          return { id: 1 };
+        }
+      }
     };
 
-    async function loadInfo() {
-      const extId = chrome.runtime.id;
-      // MUST match Spotify Dashboard exactly
-      const redirectUri = 'https://fcebfginidcappmbokiokjpgjfbmadbj.chromiumapp.org/callback';
+    // Debug logging functions
+    window.debugLog = function(title, data, type = 'info') {
+      const logsDiv = document.getElementById('debug-logs');
+      const log = document.createElement('div');
+      log.className = `debug-log ${type}`;
       
-      document.getElementById('ext-id').textContent = extId;
-      document.getElementById('redirect-uri').textContent = redirectUri;
+      const timestamp = new Date().toLocaleTimeString();
+      log.innerHTML = `<strong>[${timestamp}]</strong> ${title}: ${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}`;
       
-      await loadStorage();
-      await checkAuth();
-    }
+      logsDiv.appendChild(log);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    };
 
-    async function loadStorage() {
-      try {
-        const data = await chrome.storage.local.get(null);
-        document.getElementById('storage-contents').textContent = JSON.stringify(data, null, 2);
-        
-        const hasToken = !!data.spotifyToken;
-        document.getElementById('has-token').textContent = hasToken ? 'Yes' : 'No';
-        
-        if (data.tokenTimestamp) {
-          const age = Math.floor((Date.now() - data.tokenTimestamp) / 1000);
-          const ageMin = Math.floor(age / 60);
-          document.getElementById('token-age').textContent = `${ageMin} minutes (${age}s)`;
-          
-          const expiresIn = 3600 - age;
-          const expiresMin = Math.floor(expiresIn / 60);
-          document.getElementById('token-expires').textContent = expiresIn > 0 
-            ? `${expiresMin} minutes (${expiresIn}s)` 
-            : 'EXPIRED';
-        } else {
-          document.getElementById('token-age').textContent = 'N/A';
-          document.getElementById('token-expires').textContent = 'N/A';
-        }
-      } catch (e) {
-        log('Error loading storage:', e);
-      }
-    }
+    window.clearDebugConsole = function() {
+      document.getElementById('debug-logs').innerHTML = '';
+      debugLog('🔄', 'Console cleared', 'info');
+    };
 
-    async function checkAuth() {
-      try {
-        const { spotifyToken, tokenTimestamp } = await chrome.storage.local.get({
-          spotifyToken: '',
-          tokenTimestamp: 0
-        });
-        
-        const hasToken = !!spotifyToken;
-        const notExpired = (Date.now() - tokenTimestamp) < 3600000;
-        const isAuthed = hasToken && notExpired;
-        
-        const statusEl = document.getElementById('auth-status');
-        if (isAuthed) {
-          statusEl.textContent = '✅ Authenticated';
-          statusEl.className = 'status good';
-        } else {
-          statusEl.textContent = '❌ Not Authenticated';
-          statusEl.className = 'status bad';
-        }
-      } catch (e) {
-        log('Error checking auth:', e);
-      }
-    }
-
-    async function testToken() {
-      log('Testing token...');
-      try {
-        const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
-        if (!spotifyToken) {
-          log('❌ No token found');
-          return;
-        }
-        
-        const res = await fetch('https://api.spotify.com/v1/me', {
-          headers: { 'Authorization': 'Bearer ' + spotifyToken }
-        });
-        
-        if (res.ok) {
-          const user = await res.json();
-          log('✅ Token is valid!');
-          log('User:', user.display_name, '(' + user.email + ')');
-          log('Account type:', user.product);
-        } else {
-          const error = await res.text();
-          log('❌ Token is invalid:', res.status, error);
-        }
-      } catch (e) {
-        log('❌ Error testing token:', e);
-      }
-      await checkAuth();
-    }
-
-    async function clearToken() {
-      if (!confirm('Are you sure you want to clear the token?')) return;
+    function updateStorageDisplay() {
+      const display = document.getElementById('storage-display');
+      const tasks = localStorage.getItem('tasks');
+      const activeTab = localStorage.getItem('activeTab');
+      const customTabs = localStorage.getItem('customTabs');
       
-      log('Clearing token...');
-      await chrome.storage.local.remove(['spotifyToken', 'tokenTimestamp', 'spotifyRefreshToken', 'spotifyCodeVerifier']);
-      log('✅ Token cleared');
-      await loadStorage();
-      await checkAuth();
-    }
-
-    function copyRedirectUri() {
-      const uri = document.getElementById('redirect-uri').textContent;
-      navigator.clipboard.writeText(uri);
-      log('✅ Copied redirect URI to clipboard');
-    }
-
-    function openPopup() {
-      chrome.action.openPopup();
-    }
-
-    async function forceLogin() {
-      log('🔐 Forcing login flow...');
-      try {
-        // Clear any existing token first
-        await chrome.storage.local.remove(['spotifyToken', 'tokenTimestamp', 'spotifyRefreshToken']);
-        log('✅ Cleared existing tokens');
-        
-        // Open popup which will show login screen
-        chrome.action.openPopup();
-        log('✅ Popup opened - click the Login button or the green "Login with Spotify" button');
-      } catch (e) {
-        log('❌ Error:', e);
+      let html = '';
+      if (tasks) {
+        html += `<div class="storage-item"><strong>tasks:</strong> ${tasks}</div>`;
       }
-    }
-
-    async function forceLogout() {
-      log('🚪 Forcing logout...');
-      try {
-        await chrome.storage.local.remove(['spotifyToken', 'tokenTimestamp', 'spotifyRefreshToken', 'spotifyCodeVerifier']);
-        log('✅ Logged out - all tokens cleared');
-        await loadStorage();
-        await checkAuth();
-        log('✅ Open popup to see login screen');
-      } catch (e) {
-        log('❌ Error:', e);
+      if (activeTab) {
+        html += `<div class="storage-item"><strong>activeTab:</strong> ${activeTab}</div>`;
       }
-    }
-
-    async function testAPI() {
-      log('Testing Spotify API connection...');
-      try {
-        const { spotifyToken } = await chrome.storage.local.get({ spotifyToken: '' });
-        if (!spotifyToken) {
-          log('❌ No token available. Please login first.');
-          return;
-        }
-        
-        // Test Web API
-        log('Testing Web API - Get current user...');
-        const userRes = await fetch('https://api.spotify.com/v1/me', {
-          headers: { 'Authorization': 'Bearer ' + spotifyToken }
-        });
-        log('User API response:', userRes.status);
-        
-        // Test player endpoint
-        log('Testing Player API - Get devices...');
-        const devicesRes = await fetch('https://api.spotify.com/v1/me/player/devices', {
-          headers: { 'Authorization': 'Bearer ' + spotifyToken }
-        });
-        const devices = await devicesRes.json();
-        log('Devices:', devices);
-        
-        if (devices.devices && devices.devices.length > 0) {
-          log('✅ Found', devices.devices.length, 'device(s)');
-          devices.devices.forEach(d => {
-            log('  -', d.name, '(' + d.type + ')', d.is_active ? '[ACTIVE]' : '');
-          });
-        } else {
-          log('⚠️ No active Spotify devices found. Please open Spotify somewhere.');
-        }
-      } catch (e) {
-        log('❌ Error testing API:', e);
+      if (customTabs) {
+        html += `<div class="storage-item"><strong>customTabs:</strong> ${customTabs}</div>`;
       }
+      
+      if (!html) {
+        html = '<div class="storage-item">No data in storage</div>';
+      }
+      
+      display.innerHTML = html;
     }
 
-    // Load info on page load
-    loadInfo();
-    
-    // Refresh every 5 seconds
-    setInterval(() => {
-      loadStorage();
-      checkAuth();
-    }, 5000);
+    // Override console methods to also log to debug console
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+
+    console.log = function(...args) {
+      originalConsoleLog.apply(console, args);
+      debugLog('LOG', args.join(' '), 'info');
+    };
+
+    console.error = function(...args) {
+      originalConsoleError.apply(console, args);
+      debugLog('ERROR', args.join(' '), 'error');
+    };
+
+    console.warn = function(...args) {
+      originalConsoleWarn.apply(console, args);
+      debugLog('WARN', args.join(' '), 'warning');
+    };
+
+    // Initialize
+    debugLog('🚀', 'Debug mode initialized', 'success');
+    updateStorageDisplay();
+
+    // Import and initialize the extension modules
+    import('./js/timer.js').then(({ TimerManager }) => {
+      window.timerManager = new TimerManager();
+      window.timerManager.init();
+      debugLog('⏱️', 'TimerManager initialized', 'success');
+    });
+
+    import('./js/tabs.js').then(({ TabManager }) => {
+      window.tabManager = new TabManager();
+      window.tabManager.init();
+      debugLog('📑', 'TabManager initialized', 'success');
+    });
+
+    import('./js/ui.js').then(({ UIManager }) => {
+      UIManager.init();
+      debugLog('🎨', 'UIManager initialized', 'success');
+    });
+
+    // Periodic storage display update
+    setInterval(updateStorageDisplay, 2000);
   </script>
 </body>
 </html>
-
