@@ -38,15 +38,20 @@ export class TabManager {
     const customTabs = await StorageManager.getCustomTabs();
     const tasks = await StorageManager.getTasks();
     
-    // Ensure default tabs exist
+    // Ensure default tabs exist without overwriting other data
+    let changed = false;
     if (!tasks.today) {
       tasks.today = [];
+      changed = true;
     }
     if (!tasks.tomorrow) {
       tasks.tomorrow = [];
+      changed = true;
     }
     
-    await StorageManager.setTasks(tasks);
+    if (changed) {
+      await StorageManager.setTasks(tasks);
+    }
     await this.renderTabs();
   }
 
@@ -460,6 +465,14 @@ export class TabManager {
       tasks[this.activeTab].splice(index, 1);
       console.log('✅ Task removed. Remaining tasks:', tasks[this.activeTab].length);
       console.log('Remaining tasks:', tasks[this.activeTab]);
+      
+      // Optimistic UI update: remove from DOM immediately
+      try {
+        const li = this.elements.taskList?.children?.[index];
+        if (li && li.parentNode) {
+          li.parentNode.removeChild(li);
+        }
+      } catch {}
       
       // Save to storage
       console.log('Saving to storage...');

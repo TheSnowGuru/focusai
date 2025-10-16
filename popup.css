@@ -234,6 +234,23 @@ html, body {
   gap: 10px;
 }
 
+.restart-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.restart-btn:hover {
+  background: var(--hover);
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
 .pomodoro-right {
   display: flex;
   align-items: center;

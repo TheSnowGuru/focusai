@@ -13,6 +13,7 @@ export class TimerManager {
     this.elements = {
       time: document.getElementById('time'),
       startStop: document.getElementById('start-stop'),
+      restart: document.getElementById('restart'),
       playMusic: document.getElementById('play-music'),
       prev: document.getElementById('prev'),
       next: document.getElementById('next'),
@@ -22,6 +23,8 @@ export class TimerManager {
     };
     
     this.isMusicPlaying = false;
+    this.isPaused = false;
+    this.pausedTimeRemaining = null;
     this.initEventListeners();
     this.initDurationControls();
     this.restoreState();
@@ -30,6 +33,10 @@ export class TimerManager {
   initEventListeners() {
     if (this.elements.startStop) {
       this.elements.startStop.addEventListener('click', () => this.toggleTimer());
+    }
+    
+    if (this.elements.restart) {
+      this.elements.restart.addEventListener('click', () => this.restartTimer());
     }
     
     if (this.elements.playMusic) {
@@ -61,10 +68,73 @@ export class TimerManager {
   async toggleTimer() {
     const { isRunning } = await StorageManager.getTimerState();
     if (isRunning) {
-      await this.stopTimer();
+      await this.pauseTimer();
     } else {
+      await this.resumeTimer();
+    }
+  }
+
+  async pauseTimer() {
+    // Pause the timer without resetting
+    clearInterval(this.ticking);
+    this.ticking = null;
+    
+    // Store paused state
+    this.isPaused = true;
+    await StorageManager.setTimerState({ 
+      isRunning: false, 
+      isPaused: true,
+      pausedTimeRemaining: this.pausedTimeRemaining || await this.getRemainingTime()
+    });
+    
+    this.setRunningUI(false);
+    console.log('⏸️ Timer paused');
+  }
+
+  async resumeTimer() {
+    // Resume from paused state or start fresh
+    const state = await StorageManager.getTimerState();
+    
+    if (state.isPaused && state.pausedTimeRemaining) {
+      // Resume from where we left off
+      console.log('▶️ Resuming timer from', state.pausedTimeRemaining, 'ms');
+      const startTime = Date.now();
+      const durationMs = state.pausedTimeRemaining;
+      
+      await StorageManager.setTimerState({ 
+        startTime, 
+        durationMs, 
+        isRunning: true,
+        isPaused: false,
+        pausedTimeRemaining: null
+      });
+
+      chrome.alarms.clear('focus-end', () => {
+        chrome.alarms.create('focus-end', { when: startTime + durationMs });
+      });
+
+      this.setRunningUI(true);
+      this.tick(durationMs, startTime, durationMs);
+    } else {
+      // Start fresh
       await this.startTimer();
     }
+  }
+
+  async getRemainingTime() {
+    const state = await StorageManager.getTimerState();
+    if (!state.isRunning || !state.startTime) return null;
+    
+    const elapsed = Date.now() - state.startTime;
+    const remaining = state.durationMs - elapsed;
+    return Math.max(0, remaining);
+  }
+
+  async restartTimer() {
+    // Stop current timer and start fresh
+    await this.stopTimer(true);
+    await this.startTimer();
+    console.log('🔄 Timer restarted');
   }
 
   async toggleMusic() {
@@ -247,8 +317,8 @@ export class TimerManager {
 
   setRunningUI(isRunning) {
     if (this.elements.startStop) {
-      this.elements.startStop.textContent = isRunning ? 'Stop' : 'Start';
-      // Don't disable the button - user needs to be able to click it to stop
+      this.elements.startStop.textContent = isRunning ? 'Pause' : 'Start';
+      // Don't disable the button - user needs to be able to click it to pause
       this.elements.startStop.disabled = false;
       this.elements.startStop.style.opacity = '1';
       
