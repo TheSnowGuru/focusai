@@ -28381,3 +28381,247 @@ The system is now ready for testing! The modular architecture makes it much easi
 
 ---
 
+_**User (2025-10-16 07:04Z)**_
+
+nice the tasks are not being saved though, the tasks should be added easily with the enter keyboard strock when i click enter i want it to be added to the tasks list. 
+
+the poodoro thing needs fixing, it started without being ask to be started. it should have also a play button, to start the music easiily. 
+
+---
+
+_**Assistant (default)**_
+
+I'll fix both issues: the task saving problem and the auto-start timer issue. Let me investigate and fix these problems.
+
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [-] Fix task saving issue - tasks not persisting when added with Enter key
+- [ ] Remove auto-start timer when task added - should only start when user clicks play
+- [ ] Add dedicated play button for music control
+
+---
+
+Let me first check the current tabs.js file to see the task saving logic:
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/tabs.js
+
+---
+
+I can see the issues. Let me fix them:
+
+1. **Task saving issue**: The logic looks correct, but let me check if there's an issue with the StorageManager
+2. **Auto-start timer**: I need to remove the auto-start functionality
+3. **Add play button**: I need to add a dedicated music play button
+
+Let me first check the StorageManager to see if there's an issue:
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/storage.js
+
+---
+
+The StorageManager looks fine. Let me fix the issues by updating the tabs.js file:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tabs.js</summary>
+
+**Chunk 1**
+Lines added: 24, lines removed: 17
+
+```diff
+@@ -161,22 +161,29 @@
+  
+    async addTaskToActiveTab(taskText) {
+-     const tasks = await StorageManager.getTasks();
+-     if (!tasks[this.activeTab]) {
+-       tasks[this.activeTab] = [];
+-     }
+-     
+-     tasks[this.activeTab].push({
+-       text: taskText,
+-       done: false,
+-       createdAt: Date.now()
+-     });
++     try {
++       const tasks = await StorageManager.getTasks();
++       if (!tasks[this.activeTab]) {
++         tasks[this.activeTab] = [];
++       }
++       
++       tasks[this.activeTab].push({
++         text: taskText,
++         done: false,
++         createdAt: Date.now()
++       });
+  
+-     await StorageManager.setTasks(tasks);
+-     await this.loadTasksForTab(this.activeTab);
+-     
+-     // Auto-start timer when task is added
+-     const timerManager = window.timerManager;
+-     if (timerManager) {
+-       await timerManager.autoStartOnTaskAdd();
++       console.log('Saving tasks:', tasks);
++       const success = await StorageManager.setTasks(tasks);
++       console.log('Storage save success:', success);
++       
++       await this.loadTasksForTab(this.activeTab);
++       console.log('Tasks loaded for tab:', this.activeTab);
++       
++       // Update motivation after adding task
++       const { UIManager } = await import('./ui.js');
++       UIManager.updateMotivation();
++       
++     } catch (error) {
++       console.error('Error adding task:', error);
+      }
+    }
+```
+
+</details>
+
+---
+
+Now let me remove the auto-start functionality from the timer.js file:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/timer.js</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 5
+
+```diff
+@@ -226,10 +226,8 @@
+    }
+  
+-   // Auto-start timer when task is added
++   // Auto-start timer when task is added (DISABLED - user must manually start)
+    async autoStartOnTaskAdd() {
+-     const { isRunning } = await StorageManager.getTimerState();
+-     if (!isRunning) {
+-       await this.startTimer();
+-     }
++     // Auto-start disabled - user must manually start timer
++     console.log('Auto-start disabled - user must manually start timer');
+    }
+  }
+```
+
+</details>
+
+---
+
+Now let me add a dedicated play button for music control. I'll update the HTML to include a music play button:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.html</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -42,4 +42,5 @@
+            </div>
+            <div class="timer-right">
++             <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
+              <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
+              <button id="next" class="ghost" aria-label="Next track">⏭️</button>
+```
+
+</details>
+
+---
+
+Now let me add CSS styles for the music button:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.css</summary>
+
+**Chunk 1**
+Lines added: 26, lines removed: undefined
+
+```diff
+@@ -427,4 +427,30 @@
+    border-color: var(--primary);
+  }
++ 
++ /* Music button */
++ .music-btn {
++   background: #1DB954;
++   border: none;
++   color: white;
++   padding: 6px 12px;
++   border-radius: 4px;
++   font-size: 14px;
++   cursor: pointer;
++   transition: all 0.2s ease;
++   margin-right: 4px;
++ }
++ 
++ .music-btn:hover {
++   background: #1ed760;
++   transform: scale(1.05);
++ }
++ 
++ .music-btn.playing {
++   background: #dc3545;
++ }
++ 
++ .music-btn.playing:hover {
++   background: #c82333;
++ }
+  
+  /* Ghost buttons */
+```
+
+</details>
+
+---
+
+Now let me update the timer.js file to handle the music play button:
+
+
+---
+
+Tool use: **search_replace**
+
+---
+
+
+
+---
+

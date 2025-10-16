@@ -160,24 +160,31 @@ export class TabManager {
   }
 
   async addTaskToActiveTab(taskText) {
-    const tasks = await StorageManager.getTasks();
-    if (!tasks[this.activeTab]) {
-      tasks[this.activeTab] = [];
-    }
-    
-    tasks[this.activeTab].push({
-      text: taskText,
-      done: false,
-      createdAt: Date.now()
-    });
+    try {
+      const tasks = await StorageManager.getTasks();
+      if (!tasks[this.activeTab]) {
+        tasks[this.activeTab] = [];
+      }
+      
+      tasks[this.activeTab].push({
+        text: taskText,
+        done: false,
+        createdAt: Date.now()
+      });
 
-    await StorageManager.setTasks(tasks);
-    await this.loadTasksForTab(this.activeTab);
-    
-    // Auto-start timer when task is added
-    const timerManager = window.timerManager;
-    if (timerManager) {
-      await timerManager.autoStartOnTaskAdd();
+      console.log('Saving tasks:', tasks);
+      const success = await StorageManager.setTasks(tasks);
+      console.log('Storage save success:', success);
+      
+      await this.loadTasksForTab(this.activeTab);
+      console.log('Tasks loaded for tab:', this.activeTab);
+      
+      // Update motivation after adding task
+      const { UIManager } = await import('./ui.js');
+      UIManager.updateMotivation();
+      
+    } catch (error) {
+      console.error('Error adding task:', error);
     }
   }
 

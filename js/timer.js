@@ -13,11 +13,13 @@ export class TimerManager {
     this.elements = {
       time: document.getElementById('time'),
       startStop: document.getElementById('start-stop'),
+      playMusic: document.getElementById('play-music'),
       prev: document.getElementById('prev'),
       next: document.getElementById('next'),
       durationPills: document.getElementById('duration-pills')
     };
     
+    this.isMusicPlaying = false;
     this.initEventListeners();
     this.initDurationSelector();
     this.restoreState();
@@ -26,6 +28,10 @@ export class TimerManager {
   initEventListeners() {
     if (this.elements.startStop) {
       this.elements.startStop.addEventListener('click', () => this.toggleTimer());
+    }
+    
+    if (this.elements.playMusic) {
+      this.elements.playMusic.addEventListener('click', () => this.toggleMusic());
     }
     
     if (this.elements.prev) {
@@ -46,19 +52,50 @@ export class TimerManager {
     }
   }
 
-  async startTimer() {
+  async toggleMusic() {
+    if (this.isMusicPlaying) {
+      await this.stopMusic();
+    } else {
+      await this.startMusic();
+    }
+  }
+
+  async startMusic() {
     const track = await SpotifyManager.pickRandomTrack();
     if (track) {
       await SpotifyManager.playTrack(track);
+      this.isMusicPlaying = true;
+      this.updateMusicButton();
     }
+  }
 
+  async stopMusic() {
+    await SpotifyManager.stopPlayback();
+    this.isMusicPlaying = false;
+    this.updateMusicButton();
+  }
+
+  updateMusicButton() {
+    if (this.elements.playMusic) {
+      if (this.isMusicPlaying) {
+        this.elements.playMusic.textContent = '⏸️';
+        this.elements.playMusic.classList.add('playing');
+      } else {
+        this.elements.playMusic.textContent = '🎵';
+        this.elements.playMusic.classList.remove('playing');
+      }
+    }
+  }
+
+  async startTimer() {
+    // Don't auto-start music - user must click music button
     const durationMs = this.DURATION_MINUTES * 60 * 1000;
     const startTime = Date.now();
     await StorageManager.setTimerState({ 
       startTime, 
       durationMs, 
       isRunning: true, 
-      track 
+      track: null 
     });
 
     chrome.alarms.clear('focus-end', () => {
@@ -85,7 +122,8 @@ export class TimerManager {
       this.elements.time.textContent = this.formatTime(this.DURATION_MINUTES * 60 * 1000);
     }
 
-    await SpotifyManager.stopPlayback();
+    // Don't auto-stop music - let user control it separately
+    // await SpotifyManager.stopPlayback();
 
     if (!silent) {
       chrome.notifications.create({
@@ -133,25 +171,21 @@ export class TimerManager {
   }
 
   async prevTrack() {
-    const { isRunning, track } = await StorageManager.getTimerState();
-    const prev = await SpotifyManager.getPrevTrack(track);
+    if (!this.isMusicPlaying) return;
+    
+    const prev = await SpotifyManager.getPrevTrack();
     if (!prev) return;
     
-    await StorageManager.setTimerState({ track: prev });
-    if (isRunning) {
-      await SpotifyManager.playTrack(prev);
-    }
+    await SpotifyManager.playTrack(prev);
   }
 
   async nextTrack() {
-    const { isRunning, track } = await StorageManager.getTimerState();
-    const next = await SpotifyManager.getNextTrack(track);
+    if (!this.isMusicPlaying) return;
+    
+    const next = await SpotifyManager.getNextTrack();
     if (!next) return;
     
-    await StorageManager.setTimerState({ track: next });
-    if (isRunning) {
-      await SpotifyManager.playTrack(next);
-    }
+    await SpotifyManager.playTrack(next);
   }
 
   async restoreState() {
@@ -170,9 +204,7 @@ export class TimerManager {
         await this.stopTimer(true);
       } else {
         this.setRunningUI(true);
-        if (track) {
-          await SpotifyManager.playTrack(track);
-        }
+        // Don't auto-start music on restore
         this.tick(left, startTime, durationMs);
       }
     } else {
@@ -225,11 +257,9 @@ export class TimerManager {
     return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
   }
 
-  // Auto-start timer when task is added
+  // Auto-start timer when task is added (DISABLED - user must manually start)
   async autoStartOnTaskAdd() {
-    const { isRunning } = await StorageManager.getTimerState();
-    if (!isRunning) {
-      await this.startTimer();
-    }
+    // Auto-start disabled - user must manually start timer
+    console.log('Auto-start disabled - user must manually start timer');
   }
 }
