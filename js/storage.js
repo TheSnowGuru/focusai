@@ -42,12 +42,17 @@ export class StorageManager {
 
   // Task-specific storage methods
   static async getTasks() {
+    console.log('StorageManager.getTasks called');
     const { tasks } = await this.get({ tasks: {} });
+    console.log('StorageManager.getTasks result:', tasks);
     return tasks || {};
   }
 
   static async setTasks(tasks) {
-    return await this.set({ tasks });
+    console.log('StorageManager.setTasks called with:', tasks);
+    const result = await this.set({ tasks });
+    console.log('StorageManager.setTasks result:', result);
+    return result;
   }
 
   static async getActiveTab() {

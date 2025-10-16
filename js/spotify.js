@@ -6,8 +6,10 @@ export class SpotifyManager {
 
   static async loadTracks() {
     try {
+      console.log('🎵 Loading tracks from tracks.json...');
       const res = await fetch(chrome.runtime.getURL('tracks.json'));
       this.tracks = await res.json();
+      console.log('🎵 Loaded', this.tracks.length, 'tracks');
       if (!Array.isArray(this.tracks) || this.tracks.length === 0) {
         console.warn('tracks.json empty or invalid');
         this.tracks = [];
@@ -19,8 +21,14 @@ export class SpotifyManager {
   }
 
   static pickRandomTrack() {
-    if (!this.tracks.length) return null;
-    return this.tracks[Math.floor(Math.random() * this.tracks.length)];
+    console.log('🎵 pickRandomTrack called, tracks available:', this.tracks.length);
+    if (!this.tracks.length) {
+      console.log('🎵 No tracks available');
+      return null;
+    }
+    const track = this.tracks[Math.floor(Math.random() * this.tracks.length)];
+    console.log('🎵 Selected track:', track.name);
+    return track;
   }
 
   static getNextTrack(current) {

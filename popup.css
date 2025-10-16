@@ -153,18 +153,79 @@ html, body {
   color: var(--primary);
 }
 
-/* Compact Pomodoro Section (at bottom, 1.5cm height) */
-.pomodoro-section {
+/* Pomodoro Footer (at very bottom) */
+.pomodoro-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--panel);
   border-top: 1px solid var(--border);
   padding: 8px 20px;
-  margin: 0;
   height: 1.5cm;
   min-height: 1.5cm;
   max-height: 1.5cm;
+  z-index: 100;
+}
+
+/* Spotify Player */
+.spotify-player {
+  position: fixed;
+  bottom: 1.5cm;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  z-index: 99;
+  transition: transform 0.3s ease;
+}
+
+.spotify-player.hidden {
+  transform: translateY(100%);
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+
+.player-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.close-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.spotify-embed {
+  height: 80px;
+  border: none;
+}
+
+.spotify-embed iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 .pomodoro-left {
@@ -213,7 +274,7 @@ html, body {
 
 /* Main Content */
 .main-content {
-  padding: 0;
+  padding: 0 0 1.5cm 0; /* Add bottom padding for fixed footer */
 }
 
 .task-section {
@@ -276,6 +337,27 @@ html, body {
 .primary-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.primary-btn.running {
+  background: #dc3545;
+  animation: pulse 2s infinite;
+}
+
+.primary-btn.running:hover {
+  background: #c82333;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+  }
 }
 
 .btn-icon {
@@ -352,7 +434,7 @@ html, body {
 }
 
 .task-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   margin: 0 0 2px 0;
@@ -360,7 +442,7 @@ html, body {
 }
 
 .task-details {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   margin: 0;
 }

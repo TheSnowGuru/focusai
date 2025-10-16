@@ -3,16 +3,21 @@ import { StorageManager } from './storage.js';
 
 export class UIManager {
   static motivationalMessages = [
-    "Get things done now",
-    "Focus on your tasks",
-    "Close your mobile",
-    "Deep work creates value",
-    "One task at a time",
-    "Eliminate distractions",
-    "Your future self will thank you",
-    "Progress over perfection",
-    "Stay in the zone",
-    "Make every minute count"
+    "Complete today's goals",
+    "Finish what you started",
+    "Cross off every task today",
+    "Make today count",
+    "Achieve your daily targets",
+    "End today with zero pending tasks",
+    "Complete your mission today",
+    "Finish strong today",
+    "Accomplish your goals today",
+    "Make today productive",
+    "Complete your to-do list",
+    "Finish everything you planned",
+    "Achieve your daily objectives",
+    "Complete your tasks today",
+    "End today with success"
   ];
 
   static init() {

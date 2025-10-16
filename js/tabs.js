@@ -112,10 +112,25 @@ export class TabManager {
   }
 
   async switchTab(tabId) {
+    console.log('=== SWITCH TAB DEBUG ===');
+    console.log('switchTab called with:', tabId);
+    console.log('Previous active tab:', this.activeTab);
+    
+    // Get current tasks before switching
+    const tasksBeforeSwitch = await StorageManager.getTasks();
+    console.log('Tasks before tab switch:', tasksBeforeSwitch);
+    
     this.activeTab = tabId;
     await StorageManager.setActiveTab(tabId);
     this.setActiveTab(tabId);
     await this.loadTasksForTab(tabId);
+    
+    // Get tasks after switching
+    const tasksAfterSwitch = await StorageManager.getTasks();
+    console.log('Tasks after tab switch:', tasksAfterSwitch);
+    
+    console.log('Tab switched to:', tabId);
+    console.log('=== END SWITCH TAB DEBUG ===');
   }
 
   setActiveTab(tabId) {
@@ -134,12 +149,23 @@ export class TabManager {
   }
 
   async loadTasksForTab(tabId) {
+    console.log('=== LOAD TASKS FOR TAB DEBUG ===');
+    console.log('Loading tasks for tab:', tabId);
+    
     const tasks = await StorageManager.getTasks();
+    console.log('All tasks from storage:', tasks);
+    
     const tabTasks = tasks[tabId] || [];
+    console.log('Tasks for tab', tabId, ':', tabTasks);
+    console.log('Number of tasks for tab:', tabTasks.length);
     
     if (this.elements.taskList) {
+      console.log('Task list element found, rendering tasks');
       this.renderTasks(tabTasks);
+    } else {
+      console.log('No task list element found!');
     }
+    console.log('=== END LOAD TASKS FOR TAB DEBUG ===');
   }
 
   async addTask() {
@@ -157,8 +183,10 @@ export class TabManager {
       return;
     }
 
-    await this.addTaskToActiveTab(text);
+    // Clear input first
     input.value = '';
+    
+    await this.addTaskToActiveTab(text);
     console.log('Task added successfully');
   }
 
@@ -172,23 +200,43 @@ export class TabManager {
 
   async addTaskToActiveTab(taskText) {
     try {
+      console.log('addTaskToActiveTab called with:', taskText);
+      console.log('Active tab:', this.activeTab);
+      console.log('Task list element:', this.elements.taskList);
+      
       const tasks = await StorageManager.getTasks();
+      console.log('Current tasks from storage:', tasks);
+      
       if (!tasks[this.activeTab]) {
         tasks[this.activeTab] = [];
+        console.log('Created new tab array for:', this.activeTab);
       }
       
-      tasks[this.activeTab].push({
+      const newTask = {
         text: taskText,
         done: false,
         createdAt: Date.now()
-      });
+      };
+      
+      tasks[this.activeTab].push(newTask);
+      console.log('Added task to array:', newTask);
+      console.log('Updated tasks object:', tasks);
 
-      console.log('Saving tasks:', tasks);
       const success = await StorageManager.setTasks(tasks);
       console.log('Storage save success:', success);
       
+      // Verify the save worked
+      const savedTasks = await StorageManager.getTasks();
+      console.log('Tasks after save:', savedTasks);
+      
+      // Force immediate rendering
+      console.log('About to call loadTasksForTab...');
       await this.loadTasksForTab(this.activeTab);
       console.log('Tasks loaded for tab:', this.activeTab);
+      
+      // Also try direct rendering as a test
+      console.log('Direct rendering test...');
+      this.renderTasks(tasks[this.activeTab]);
       
       // Update motivation after adding task
       const { UIManager } = await import('./ui.js');
@@ -281,14 +329,22 @@ export class TabManager {
   }
 
   renderTasks(tasks) {
-    if (!this.elements.taskList) return;
+    console.log('renderTasks called with:', tasks);
+    if (!this.elements.taskList) {
+      console.log('No taskList element found');
+      return;
+    }
     
+    console.log('Clearing task list and rendering', tasks.length, 'tasks');
     this.elements.taskList.innerHTML = '';
     
     tasks.forEach((task, index) => {
+      console.log('Creating task element for:', task);
       const taskElement = this.createTaskElement(task, index);
       this.elements.taskList.appendChild(taskElement);
     });
+    
+    console.log('Task list now has', this.elements.taskList.children.length, 'children');
   }
 
   createTaskElement(task, index) {
@@ -366,15 +422,47 @@ export class TabManager {
   }
 
   async completeTask(index) {
+    console.log('=== COMPLETE TASK DEBUG ===');
+    console.log('completeTask called with index:', index);
+    console.log('Active tab:', this.activeTab);
+    console.log('Task list element:', this.elements.taskList);
+    
     // Import UIManager for celebrate effect
     const { UIManager } = await import('./ui.js');
     UIManager.celebrate();
     
     const tasks = await StorageManager.getTasks();
+    console.log('Tasks before completion:', tasks);
+    console.log('Tasks for active tab:', tasks[this.activeTab]);
+    console.log('Number of tasks in active tab:', tasks[this.activeTab]?.length || 0);
+    
     if (tasks[this.activeTab] && tasks[this.activeTab][index]) {
+      console.log('Task to remove:', tasks[this.activeTab][index]);
+      console.log('Removing task at index:', index);
+      
       tasks[this.activeTab].splice(index, 1);
-      await StorageManager.setTasks(tasks);
+      console.log('Tasks after removal:', tasks);
+      console.log('Number of tasks after removal:', tasks[this.activeTab].length);
+      
+      const saveResult = await StorageManager.setTasks(tasks);
+      console.log('Storage save result:', saveResult);
+      
+      // Verify the save worked
+      const savedTasks = await StorageManager.getTasks();
+      console.log('Tasks after save verification:', savedTasks);
+      console.log('Number of tasks after save:', savedTasks[this.activeTab]?.length || 0);
+      
       await this.loadTasksForTab(this.activeTab);
+      console.log('Tasks reloaded for tab');
+      
+      // Final verification
+      const finalTasks = await StorageManager.getTasks();
+      console.log('Final tasks state:', finalTasks);
+      console.log('=== END COMPLETE TASK DEBUG ===');
+    } else {
+      console.log('Task not found at index:', index);
+      console.log('Available tasks:', tasks[this.activeTab]);
+      console.log('=== END COMPLETE TASK DEBUG ===');
     }
   }
 

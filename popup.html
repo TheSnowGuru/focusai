@@ -33,7 +33,7 @@
         <!-- Tab Bar -->
         <div id="tab-bar" class="tab-bar"></div>
 
-        <!-- Task Section (moved above pomodoro) -->
+        <!-- Task Section -->
         <div class="task-section">
           <div class="task-header">
             <div class="task-title-section">
@@ -54,25 +54,34 @@
 
           <div id="confetti" aria-hidden="true"></div>
         </div>
+      </div>
 
-        <!-- Compact Pomodoro Section (at bottom, 1.5cm height) -->
-        <div class="pomodoro-section">
-          <div class="pomodoro-left">
-            <button id="start-stop" class="primary-btn">Start</button>
-            <div id="time" class="timer-time">25:00</div>
-            <div class="duration-controls">
-              <button id="duration-down" class="duration-btn">-</button>
-              <input id="duration-input" type="text" value="25" class="duration-input" />
-              <button id="duration-up" class="duration-btn">+</button>
-            </div>
-          </div>
-          <div class="pomodoro-right">
-            <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
-            <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
-            <button id="next" class="ghost" aria-label="Next track">⏭️</button>
+      <!-- Pomodoro Footer (at very bottom) -->
+      <div class="pomodoro-footer">
+        <div class="pomodoro-left">
+          <button id="start-stop" class="primary-btn">Start</button>
+          <div id="time" class="timer-time">25:00</div>
+          <div class="duration-controls">
+            <button id="duration-down" class="duration-btn">-</button>
+            <input id="duration-input" type="text" value="25" class="duration-input" />
+            <button id="duration-up" class="duration-btn">+</button>
           </div>
         </div>
+        <div class="pomodoro-right">
+          <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
+          <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
+          <button id="next" class="ghost" aria-label="Next track">⏭️</button>
+        </div>
       </div>
+    </div>
+
+    <!-- Hidden Spotify Player (shown when music is playing) -->
+    <div id="spotify-player" class="spotify-player hidden">
+      <div class="player-header">
+        <span class="player-title">Now Playing</span>
+        <button id="close-player" class="close-btn">×</button>
+      </div>
+      <div id="spotify-embed" class="spotify-embed"></div>
     </div>
 
     <!-- Login View -->

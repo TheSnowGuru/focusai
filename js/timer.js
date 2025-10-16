@@ -4,7 +4,7 @@ import { SpotifyManager } from './spotify.js';
 
 export class TimerManager {
   constructor() {
-    this.DURATION_MINUTES = 25;
+    this.DURATION_MINUTES = 25; // Default to 25 minutes
     this.ticking = null;
     this.elements = {};
   }
@@ -78,9 +78,38 @@ export class TimerManager {
   async startMusic() {
     const track = await SpotifyManager.pickRandomTrack();
     if (track) {
+      console.log('🎵 Starting music with track:', track.name);
+      
+      // Show embedded Spotify player initially
+      this.showSpotifyPlayer(track);
+      
+      // Try the offscreen playback first
       await SpotifyManager.playTrack(track);
+      
+      // Open Spotify in a new tab as fallback and hide embedded player
+      setTimeout(async () => {
+        try {
+          await chrome.tabs.create({ 
+            url: track.url,
+            active: false // Open in background
+          });
+          console.log('🎵 Opened Spotify tab for track:', track.name);
+          
+          // Hide the embedded player after opening browser tab
+          setTimeout(() => {
+            this.hideSpotifyPlayer();
+            console.log('🎵 Hidden embedded player after browser playback started');
+          }, 1000); // Hide after 1 second
+          
+        } catch (error) {
+          console.log('🎵 Could not open Spotify tab:', error);
+        }
+      }, 2000); // Wait 2 seconds to see if offscreen playback works
+      
       this.isMusicPlaying = true;
       this.updateMusicButton();
+    } else {
+      console.log('🎵 No tracks available');
     }
   }
 
@@ -88,6 +117,45 @@ export class TimerManager {
     await SpotifyManager.stopPlayback();
     this.isMusicPlaying = false;
     this.updateMusicButton();
+    this.hideSpotifyPlayer();
+  }
+
+  showSpotifyPlayer(track) {
+    const player = document.getElementById('spotify-player');
+    const embed = document.getElementById('spotify-embed');
+    
+    if (player && embed && track) {
+      // Extract track ID from URL
+      const trackId = track.url.match(/track\/([A-Za-z0-9]+)/)?.[1];
+      if (trackId) {
+        embed.innerHTML = `
+          <iframe 
+            src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0" 
+            width="100%" 
+            height="80" 
+            frameBorder="0" 
+            allowfullscreen="" 
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+            loading="lazy">
+          </iframe>
+        `;
+      }
+      
+      player.classList.remove('hidden');
+      
+      // Add close button listener
+      const closeBtn = document.getElementById('close-player');
+      if (closeBtn) {
+        closeBtn.onclick = () => this.hideSpotifyPlayer();
+      }
+    }
+  }
+
+  hideSpotifyPlayer() {
+    const player = document.getElementById('spotify-player');
+    if (player) {
+      player.classList.add('hidden');
+    }
   }
 
   updateMusicButton() {
@@ -180,8 +248,16 @@ export class TimerManager {
   setRunningUI(isRunning) {
     if (this.elements.startStop) {
       this.elements.startStop.textContent = isRunning ? 'Stop' : 'Start';
-      this.elements.startStop.disabled = isRunning;
-      this.elements.startStop.style.opacity = isRunning ? '0.6' : '1';
+      // Don't disable the button - user needs to be able to click it to stop
+      this.elements.startStop.disabled = false;
+      this.elements.startStop.style.opacity = '1';
+      
+      // Add visual feedback for running state
+      if (isRunning) {
+        this.elements.startStop.classList.add('running');
+      } else {
+        this.elements.startStop.classList.remove('running');
+      }
     }
   }
 
