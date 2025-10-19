@@ -181,6 +181,11 @@ export class TaskManager {
     await this.saveTasks();
     this.render();
     
+    // Update gamification progress if task was added to Today tab
+    if (this.currentTabId === 'today' && window.gamificationManager) {
+      window.gamificationManager.updateDailyProgress();
+    }
+    
     // Clear input and focus
     input.value = '';
     input.focus();

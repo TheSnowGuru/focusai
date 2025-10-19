@@ -13,6 +13,7 @@ export class GamificationManager {
   async init() {
     console.log('🎮 Initializing Gamification Manager...');
     this.createGamificationUI();
+    await this.resetDailyBaseCountIfNeeded();
     await this.updateStreak();
     await this.updateDailyProgress();
     console.log('✅ Gamification Manager initialized');
@@ -24,8 +25,27 @@ export class GamificationManager {
           this.updateDailyProgress();
           this.updateStreak();
         }
+        if (changes.allTasks) {
+          // Update progress when tasks are added/modified
+          this.updateDailyProgress();
+        }
       }
     });
+  }
+
+  // Reset daily base count if it's a new day
+  async resetDailyBaseCountIfNeeded() {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await chrome.storage.local.get(['lastBaseCountReset']);
+    const lastReset = result.lastBaseCountReset;
+    
+    if (lastReset !== today) {
+      await chrome.storage.local.set({ 
+        todayBaseCount: 0,
+        lastBaseCountReset: today 
+      });
+      console.log('🔄 Daily base count reset for new day');
+    }
   }
 
   // Create gamification UI elements
@@ -139,7 +159,7 @@ export class GamificationManager {
 
   // Update daily progress
   async updateDailyProgress() {
-    const result = await chrome.storage.local.get(['completedTasks', 'dailyGoal']);
+    const result = await chrome.storage.local.get(['completedTasks', 'dailyGoal', 'todayBaseCount']);
     const completedTasks = result.completedTasks || [];
     const dailyGoal = result.dailyGoal || this.dailyGoal;
 
@@ -152,15 +172,26 @@ export class GamificationManager {
 
     const completedCount = todaysTasks.length;
     
-    // Get remaining tasks from current tab (Today tab)
-    let remainingTasks = 0;
+    // Get current tasks in Today tab
+    let currentTodayTasks = 0;
     if (window.taskManager) {
       const todayTabTasks = window.taskManager.getAllTasks()['today'] || [];
-      remainingTasks = todayTabTasks.length;
+      currentTodayTasks = todayTabTasks.length;
     }
     
-    // Total = completed + remaining
-    const totalTasks = completedCount + remainingTasks;
+    // Calculate base count (total tasks that were in Today tab today)
+    // This should only increase, never decrease
+    const totalTodayTasks = completedCount + currentTodayTasks;
+    let todayBaseCount = result.todayBaseCount || 0;
+    
+    // Update base count if current total is higher (new tasks added)
+    if (totalTodayTasks > todayBaseCount) {
+      todayBaseCount = totalTodayTasks;
+      await chrome.storage.local.set({ todayBaseCount });
+    }
+    
+    // Use the base count as the total
+    const totalTasks = todayBaseCount;
     const percentage = totalTasks > 0 ? Math.min((completedCount / totalTasks) * 100, 100) : 0;
 
     // Update progress bar
