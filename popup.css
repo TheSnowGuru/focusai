@@ -30,28 +30,19 @@ html, body {
   background: var(--bg);
 }
 
-/* Motivation Header (at very top) */
-.motivation-header {
-  background: linear-gradient(135deg, rgba(0,123,255,0.08), rgba(40,167,69,0.08));
-  border: 1px solid rgba(0,123,255,0.15);
-  border-radius: 0;
-  padding: 12px 20px;
-  margin: 0;
-  text-align: center;
-  border-bottom: 1px solid var(--border);
-}
-
-#motivation-text {
-  font-size: 13px;
-  font-weight: 600;
+/* Motivation text under logo */
+.motivation-text {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--primary);
-  line-height: 1.4;
+  margin-top: 2px;
+  line-height: 1.3;
 }
 
 /* Header */
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
@@ -59,7 +50,7 @@ html, body {
 
 .header-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
@@ -67,6 +58,13 @@ html, body {
   width: 24px;
   height: 24px;
   border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.app-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .app-info h1 {
@@ -74,30 +72,21 @@ html, body {
   font-weight: 700;
   margin: 0;
   color: var(--text);
-  line-height: 1.3;
-}
-
-.tagline-inline {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.tagline {
-  display: none;
+  line-height: 1.2;
 }
 
 .header-right {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
+  margin-top: 2px;
 }
 
 .auth-btn {
   background: var(--primary);
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
@@ -128,7 +117,7 @@ html, body {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -155,6 +144,14 @@ html, body {
 .tab.add-tab:hover {
   border-color: var(--primary);
   color: var(--primary);
+}
+
+.tab.drag-over {
+  background: var(--accent) !important;
+  color: white !important;
+  border-color: var(--accent) !important;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
 }
 
 /* Pomodoro Footer (at very bottom) */
@@ -417,10 +414,12 @@ html, body {
 }
 
 #task-list li.dragging {
-  opacity: 0.5;
-  transform: rotate(2deg);
+  opacity: 0.6;
+  transform: rotate(2deg) scale(1.05);
   cursor: grabbing;
   box-shadow: var(--shadow-lg);
+  background: var(--panel);
+  border: 2px dashed var(--primary);
 }
 
 .task-status {

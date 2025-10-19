@@ -38,7 +38,7 @@ export class TabManager {
     // Default tabs
     const defaultTabs = [
       { id: 'today', name: 'Today' },
-      { id: 'tomorrow', name: 'Tomorrow' }
+      { id: 'tomorrow', name: 'This Week' }
     ];
 
     // Custom tabs

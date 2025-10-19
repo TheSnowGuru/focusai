@@ -26,10 +26,9 @@ export class UIManager {
   }
 
   static updateMotivation() {
-    const $motivation = document.getElementById('motivation');
     const $motivationText = document.getElementById('motivation-text');
     
-    if (!$motivation || !$motivationText) return;
+    if (!$motivationText) return;
     
     // Check if user has tasks
     const $taskList = document.getElementById('task-list');
@@ -37,12 +36,10 @@ export class UIManager {
     
     if (!hasTasks) {
       $motivationText.textContent = "Add your first task";
-      $motivation.classList.remove('hidden');
     } else {
       // Show random motivational message
       const randomIndex = Math.floor(Math.random() * this.motivationalMessages.length);
       $motivationText.textContent = this.motivationalMessages[randomIndex];
-      $motivation.classList.remove('hidden');
     }
   }
 

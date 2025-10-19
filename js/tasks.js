@@ -41,6 +41,94 @@ export class TaskManager {
         }
       }
     });
+
+    // Enable drag-and-drop between tabs
+    this.setupTabDragDrop();
+  }
+
+  // Setup drag-and-drop for tabs
+  setupTabDragDrop() {
+    if (!this.elements.tabBar) return;
+
+    // Use event delegation for dynamically created tabs
+    this.elements.tabBar.addEventListener('dragover', (e) => {
+      const tab = e.target.closest('.tab');
+      if (tab && !tab.classList.contains('add-tab') && this.draggedElement) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        // Highlight the tab being dragged over
+        this.elements.tabBar.querySelectorAll('.tab').forEach(t => {
+          t.classList.remove('drag-over');
+        });
+        tab.classList.add('drag-over');
+      }
+    });
+
+    this.elements.tabBar.addEventListener('dragleave', (e) => {
+      const tab = e.target.closest('.tab');
+      if (tab) {
+        tab.classList.remove('drag-over');
+      }
+    });
+
+    this.elements.tabBar.addEventListener('drop', async (e) => {
+      const tab = e.target.closest('.tab');
+      if (tab && !tab.classList.contains('add-tab') && this.draggedElement) {
+        e.preventDefault();
+        
+        const targetTabId = tab.dataset.tab;
+        const taskId = this.draggedElement.getAttribute('data-task-id');
+        
+        // Remove highlight
+        tab.classList.remove('drag-over');
+        
+        // Move task to target tab
+        if (targetTabId && targetTabId !== this.currentTabId) {
+          await this.moveTaskToTab(taskId, targetTabId);
+        }
+      }
+    });
+  }
+
+  // Move a task from current tab to another tab
+  async moveTaskToTab(taskId, targetTabId) {
+    const currentTasks = this.getCurrentTasks();
+    const taskIndex = currentTasks.findIndex(t => t.id === taskId);
+    
+    if (taskIndex === -1) return;
+    
+    // Remove task from current tab
+    const [task] = currentTasks.splice(taskIndex, 1);
+    this.setCurrentTasks(currentTasks);
+    
+    // Add task to target tab
+    if (!this.allTasks[targetTabId]) {
+      this.allTasks[targetTabId] = [];
+    }
+    this.allTasks[targetTabId].push(task);
+    
+    // Save and re-render
+    await this.saveTasks();
+    this.render();
+    
+    // Show feedback
+    this.showMoveNotification(targetTabId);
+  }
+
+  // Show notification when task is moved
+  showMoveNotification(targetTabId) {
+    const targetTab = this.elements.tabBar?.querySelector(`[data-tab="${targetTabId}"]`);
+    if (targetTab) {
+      const originalText = targetTab.textContent;
+      targetTab.style.background = 'var(--accent)';
+      targetTab.style.color = 'white';
+      
+      setTimeout(() => {
+        targetTab.style.background = '';
+        targetTab.style.color = '';
+      }, 500);
+    }
   }
 
   // Switch to a different tab
@@ -232,6 +320,9 @@ export class TaskManager {
       emptyState.style.cssText = 'text-align: center; padding: 20px; color: var(--muted); border: none;';
       emptyState.textContent = 'No tasks yet. Add one above! 🎯';
       this.elements.taskList.appendChild(emptyState);
+      
+      // Update motivation
+      this.updateMotivation();
       return;
     }
 
@@ -297,6 +388,16 @@ export class TaskManager {
 
       this.elements.taskList.appendChild(li);
     });
+    
+    // Update motivation after rendering tasks
+    this.updateMotivation();
+  }
+
+  // Update motivational message
+  updateMotivation() {
+    if (typeof window !== 'undefined' && window.UIManager) {
+      window.UIManager.updateMotivation();
+    }
   }
 
   // Update task order after drag and drop

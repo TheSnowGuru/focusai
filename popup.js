@@ -28,6 +28,7 @@ async function init() {
     window.timerManager = timerManager;
     window.tabManager = tabManager;
     window.taskManager = taskManager;
+    window.UIManager = UIManager;
     
     // Initialize all modules
     timerManager.init();
