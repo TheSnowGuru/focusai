@@ -298,7 +298,7 @@ export class TimerManager {
   // Play sound when timer completes
   playCompletionSound() {
     try {
-      const audio = new Audio('contador-timer.mp3');
+      const audio = new Audio(chrome.runtime.getURL('mp3/contador-timer.mp3'));
       audio.volume = 0.8;
       audio.play().catch(e => {
         console.log('❌ Audio play failed:', e);

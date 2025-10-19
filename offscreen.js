@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 function playCompletionSound() {
   try {
-    const audio = new Audio(chrome.runtime.getURL('contador-timer.mp3'));
+    const audio = new Audio(chrome.runtime.getURL('mp3/contador-timer.mp3'));
     audio.volume = 0.8;
     audio.play().catch(e => {
       console.log('❌ Audio play failed:', e);

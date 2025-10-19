@@ -280,7 +280,7 @@ export class TaskManager {
   // Play explosion sound when task is completed
   playExplosionSound() {
     try {
-      const audio = new Audio('explosion-01.mp3');
+      const audio = new Audio(chrome.runtime.getURL('mp3/explosion-01.mp3'));
       audio.volume = 0.7;
       audio.play().catch(e => {
         console.log('❌ Explosion sound play failed:', e);

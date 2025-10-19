@@ -11,9 +11,11 @@ export class GamificationManager {
 
   // Initialize gamification
   async init() {
+    console.log('🎮 Initializing Gamification Manager...');
     this.createGamificationUI();
     await this.updateStreak();
     await this.updateDailyProgress();
+    console.log('✅ Gamification Manager initialized');
     
     // Listen for storage changes to update UI
     chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -28,8 +30,18 @@ export class GamificationManager {
 
   // Create gamification UI elements
   createGamificationUI() {
+    console.log('🎮 Creating gamification UI...');
     const header = document.querySelector('.header');
-    if (!header) return;
+    if (!header) {
+      console.error('❌ Header not found!');
+      return;
+    }
+
+    // Check if already exists
+    if (document.querySelector('.gamification-container')) {
+      console.log('⚠️ Gamification UI already exists');
+      return;
+    }
 
     // Create gamification container
     const gamificationContainer = document.createElement('div');
@@ -48,6 +60,7 @@ export class GamificationManager {
 
     // Insert after header
     header.insertAdjacentElement('afterend', gamificationContainer);
+    console.log('✅ Gamification UI created successfully');
 
     // Store references
     this.elements.streakDisplay = document.getElementById('streak-display');
@@ -138,14 +151,24 @@ export class GamificationManager {
     });
 
     const completedCount = todaysTasks.length;
-    const percentage = Math.min((completedCount / dailyGoal) * 100, 100);
+    
+    // Get remaining tasks from current tab (Today tab)
+    let remainingTasks = 0;
+    if (window.taskManager) {
+      const todayTabTasks = window.taskManager.getAllTasks()['today'] || [];
+      remainingTasks = todayTabTasks.length;
+    }
+    
+    // Total = completed + remaining
+    const totalTasks = completedCount + remainingTasks;
+    const percentage = totalTasks > 0 ? Math.min((completedCount / totalTasks) * 100, 100) : 0;
 
     // Update progress bar
     if (this.elements.progressBar) {
       this.elements.progressBar.style.width = `${percentage}%`;
       
       // Add completion class when 100%
-      if (percentage === 100) {
+      if (percentage === 100 && totalTasks > 0) {
         this.elements.progressBar.classList.add('complete');
       } else {
         this.elements.progressBar.classList.remove('complete');
@@ -154,12 +177,12 @@ export class GamificationManager {
 
     // Update progress text
     if (this.elements.progressText) {
-      this.elements.progressText.textContent = `${completedCount}/${dailyGoal} tasks today`;
+      this.elements.progressText.textContent = `${completedCount}/${totalTasks} tasks today`;
     }
 
-    // Check for goal completion celebration
-    if (completedCount === dailyGoal && percentage === 100) {
-      await this.checkForCelebration(completedCount, dailyGoal);
+    // Check for goal completion celebration (only when all tasks done)
+    if (completedCount === totalTasks && totalTasks > 0 && percentage === 100) {
+      await this.checkForCelebration(completedCount, totalTasks);
     }
   }
 
@@ -182,6 +205,9 @@ export class GamificationManager {
     
     // Play explosion sound
     this.playExplosionSound();
+    
+    // Play confetti sound
+    this.playConfettiSound();
     
     // Create massive confetti explosion
     this.createMassiveConfetti();
@@ -270,7 +296,7 @@ export class GamificationManager {
   // Play explosion sound
   playExplosionSound() {
     try {
-      const audio = new Audio('explosion-01.mp3');
+      const audio = new Audio(chrome.runtime.getURL('mp3/explosion-01.mp3'));
       audio.volume = 0.8;
       audio.play().catch(e => {
         console.log('❌ Explosion sound play failed:', e);
@@ -278,6 +304,20 @@ export class GamificationManager {
       console.log('💥 Playing celebration explosion sound');
     } catch (error) {
       console.error('❌ Failed to play explosion sound:', error);
+    }
+  }
+
+  // Play confetti sound for celebration
+  playConfettiSound() {
+    try {
+      const audio = new Audio(chrome.runtime.getURL('mp3/confetti_XAtKeYTy.mp3'));
+      audio.volume = 0.6;
+      audio.play().catch(e => {
+        console.log('❌ Confetti sound play failed:', e);
+      });
+      console.log('🎊 Playing confetti sound');
+    } catch (error) {
+      console.error('❌ Failed to play confetti sound:', error);
     }
   }
 
