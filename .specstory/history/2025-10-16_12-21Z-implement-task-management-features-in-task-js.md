@@ -12,7 +12,7 @@ and a complete with v emoji button to blow up the task and delte it from the lis
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 <think><details><summary>Thought Process</summary>The user wants to add functionality for managing tasks in their focus app. Let me understand the requirements:
 
@@ -671,7 +671,7 @@ the tasks both appear on both tabs today and tommorow, i expect to see task per 
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 <think><details><summary>Thought Process</summary>The user is saying that tasks are appearing on both tabs (today and tomorrow), but they expect each tab to have its own separate tasks. This means I need to:
 
@@ -1329,7 +1329,7 @@ change window a bit , i want to have more room for the tasks so the upper bar wi
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 <think><details><summary>Thought Process</summary>The user has two issues:
 1. Tasks are not loading when the popup opens - they only appear after adding a new task
@@ -1645,7 +1645,7 @@ it should be removed, and the motivational text should be there instead in bold 
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 <think><details><summary>Thought Process</summary>The user wants to:
 1. Remove "Tidy, plan, and finish your tasks fast" completely
@@ -2176,7 +2176,7 @@ change tommorow tab to this week.
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 <think><details><summary>Thought Process</summary>The user wants two things:
 1. Ability to drag tasks between tabs (from "today" to "tomorrow/this week")
@@ -2546,7 +2546,7 @@ when pomodoro timer ended, use the condor mp3 sound file .
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 <think><details><summary>Thought Process</summary>The user wants to use a "condor mp3 sound file" when the pomodoro timer ends. First, I need to check what sound file they're referring to and where the timer completion logic is.
 
@@ -2932,7 +2932,7 @@ the motivational line, make it the font bit bigger.
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 I'll increase the font size of the motivational text to make it more prominent.
 
@@ -2996,7 +2996,7 @@ add done tab, any task compete will appear there, when user on that tab, add but
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 I'll create a separate file for the "Done" tab functionality and add it to the existing tab system.
 
@@ -3558,7 +3558,7 @@ REMOVE THE ENTIRE SPOTFIY INTEGRATION WITH THE LOGIN FROM THIS PLUGIN, AND HOW I
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 I'll remove all Spotify integration and make the tasks page the main page without any login requirement.
 
@@ -5180,7 +5180,7 @@ when task is complete htere was suppose to play of exposion sound , and when tim
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 I'll fix all these issues. Let me check what's happening and fix them one by one.
 
@@ -5606,7 +5606,7 @@ awesome, in done tab, for each task add button to bring it back to the today's t
 
 ---
 
-_**Assistant (default)**_
+_**Assistant (claude-4.5-sonnet-thinking)**_
 
 I'll add a "bring back" button with a left arrow emoji to each task in the Done tab.
 
@@ -5658,6 +5658,840 @@ Lines added: 8, lines removed: undefined
 +       });
   
         // Delete button handler
+```
+
+</details>
+
+---
+
+Now I need to add the `restoreTaskToToday` method:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/done-tab.js</summary>
+
+**Chunk 1**
+Lines added: 38, lines removed: undefined
+
+```diff
+@@ -131,4 +131,42 @@
+      }
+    }
++ 
++   // Restore a task back to Today tab
++   async restoreTaskToToday(task) {
++     console.log('⬅️ Restoring task to Today:', task.text);
++     
++     // Remove from completed tasks
++     const result = await chrome.storage.local.get('completedTasks');
++     const completedTasks = result.completedTasks || [];
++     const updatedCompletedTasks = completedTasks.filter(t => t.id !== task.id);
++     await chrome.storage.local.set({ completedTasks: updatedCompletedTasks });
++     
++     // Add to Today tab
++     if (window.taskManager) {
++       // Create a new task object without completedAt
++       const restoredTask = {
++         id: task.id,
++         text: task.text,
++         completed: false,
++         createdAt: task.createdAt || new Date().toISOString()
++       };
++       
++       // Get today's tasks
++       const todayTasks = window.taskManager.getAllTasks()['today'] || [];
++       todayTasks.unshift(restoredTask); // Add to beginning
++       
++       // Update today's tasks
++       window.taskManager.getAllTasks()['today'] = todayTasks;
++       await window.taskManager.saveTasks();
++       
++       console.log('⬅️ Task restored to Today tab');
++       
++       // Switch to Today tab to show the restored task
++       chrome.storage.local.set({ activeTab: 'today' });
++     }
++     
++     // Refresh the done tasks display
++     this.showDoneTasks();
++   }
+  
+    // Delete a specific done task
+```
+
+</details>
+
+---
+
+Now I need to add CSS styling for the restore button:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.css</summary>
+
+**Chunk 1**
+Lines added: 17, lines removed: undefined
+
+```diff
+@@ -210,4 +210,21 @@
+    transform: scale(1.1);
+  }
++ 
++ .restore-btn {
++   background: var(--primary);
++   color: white;
++   border: none;
++   padding: 4px 8px;
++   border-radius: 4px;
++   font-size: 11px;
++   cursor: pointer;
++   transition: all 0.2s ease;
++   margin-right: 6px;
++ }
++ 
++ .restore-btn:hover {
++   background: #0056b3;
++   transform: scale(1.1);
++ }
+  
+  /* Pomodoro Footer (at very bottom) */
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/js/done-tab.js`
+- `/Users/shay/Documents/GitHub/focus/popup.css`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! I've successfully added the restore functionality to the Done tab. Here's what was implemented:
+
+## ✅ Restore Button Added to Done Tab
+
+### **New Features:**
+
+#### **1. Restore Button** ⬅️
+- ✅ **Left arrow emoji** (⬅️) button for each completed task
+- ✅ **Blue styling** to match the primary theme
+- ✅ **Hover effects** with scale animation
+- ✅ **Tooltip** showing "Restore to Today"
+
+#### **2. Restore Functionality** 🔄
+- ✅ **Removes task** from completed tasks list
+- ✅ **Adds task back** to Today tab (at the top)
+- ✅ **Switches to Today tab** automatically to show restored task
+- ✅ **Preserves original task data** (ID, text, creation date)
+- ✅ **Console logging** for debugging
+
+#### **3. Visual Layout** 🎨
+```
+Done Tab Task Layout:
+┌─────────────────────────────────┐
+│ ~~Task text~~            ⬅️ 🗑️ │  ← Restore + Delete buttons
+│ Completed: 2h ago              │
+└─────────────────────────────────┘
+```
+
+### **How It Works:**
+
+1. **Click ⬅️ button** on any completed task
+2. **Task is removed** from Done tab
+3. **Task is added** to Today tab (at the top)
+4. **Automatically switches** to Today tab
+5. **Task appears** as a new, uncompleted task
+
+### **CSS Styling:**
+- **Restore button**: Blue background, white text, hover effects
+- **Positioned**: Left of delete button with proper spacing
+- **Responsive**: Scales up on hover for better UX
+
+### **Code Features:**
+- ✅ **Error handling** for missing TaskManager
+- ✅ **Proper data structure** preservation
+- ✅ **Storage synchronization** between tabs
+- ✅ **Debug logging** for troubleshooting
+
+**Now you can easily restore any completed task back to Today's tab with a single click!** 🚀
+
+---
+
+_**User (2025-10-19 01:57Z)**_
+
+in done tab if i click clear all button, should also play the explosion sound.
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+I'll add the explosion sound to the "Clear All" button in the Done tab.
+
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+Let me read the current file to see the exact content:
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/done-tab.js
+
+---
+
+Let me read more to see the complete method:
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/done-tab.js
+
+---
+
+Now I can see the complete method. Let me add the explosion sound:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/done-tab.js</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: undefined
+
+```diff
+@@ -187,4 +187,7 @@
+        return;
+      }
++ 
++     // Play explosion sound for clearing all tasks
++     this.playExplosionSound();
+  
+      await chrome.storage.local.set({ completedTasks: [] });
+```
+
+**Chunk 2**
+Lines added: 14, lines removed: undefined
+
+```diff
+@@ -208,4 +211,18 @@
+      this.showDoneTasks();
+    }
++ 
++   // Play explosion sound when clearing all tasks
++   playExplosionSound() {
++     try {
++       const audio = new Audio('explosion-01.mp3');
++       audio.volume = 0.7;
++       audio.play().catch(e => {
++         console.log('❌ Explosion sound play failed:', e);
++       });
++       console.log('💥 Playing explosion sound for clear all');
++     } catch (error) {
++       console.error('❌ Failed to play explosion sound:', error);
++     }
++   }
+  
+    // Format date for display
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/js/done-tab.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! I've successfully added the explosion sound to the "Clear All" button in the Done tab.
+
+## ✅ Explosion Sound Added to Clear All Button
+
+### **What was added:**
+
+#### **1. Explosion Sound on Clear All** 💥
+- ✅ **Plays explosion sound** when "Clear All" button is clicked
+- ✅ **Same sound file** as task completion (`explosion-01.mp3`)
+- ✅ **Volume set to 0.7** for consistent audio experience
+- ✅ **Error handling** for audio playback failures
+
+#### **2. Sound Timing** ⏰
+- ✅ **Plays immediately** after user confirms the action
+- ✅ **Before the visual feedback** (button text change)
+- ✅ **Console logging** for debugging
+
+### **How it works:**
+
+1. **User clicks** "Clear All" button
+2. **Confirmation dialog** appears
+3. **User confirms** the action
+4. **💥 Explosion sound plays** immediately
+5. **Tasks are cleared** from storage
+6. **Visual feedback** shows "✅ Cleared!" message
+7. **Done tab refreshes** to show empty state
+
+### **Code Features:**
+- ✅ **Reusable method** `playExplosionSound()` 
+- ✅ **Consistent audio settings** (volume: 0.7)
+- ✅ **Error handling** with try-catch
+- ✅ **Console logging** for debugging
+- ✅ **No linter errors**
+
+**Now when you clear all completed tasks, you'll hear the satisfying explosion sound!** 🎆
+
+---
+
+_**User (2025-10-19 01:57Z)**_
+
+ let's add some gamification of doing tasks, and counting done tasks with the app. 
+
+suggest ideas. finishing tasks will create some kind of fomo effect and satifiying effect. 
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+Great idea! Let me suggest some gamification features that will create FOMO and satisfaction effects for task completion. Here are my recommendations:
+
+## 🎮 Gamification Ideas for FocusAI
+
+### **1. Achievement System** 🏆
+- **Streak Counter**: "3-day streak!" with fire emoji
+- **Daily Goals**: "5/5 tasks completed today!" 
+- **Weekly Challenges**: "Complete 20 tasks this week"
+- **Milestone Badges**: 
+  - First task completed 🎯
+  - 10 tasks completed 🔥
+  - 50 tasks completed 💪
+  - 100 tasks completed 🚀
+  - 7-day streak 🏆
+  - 30-day streak 👑
+
+### **2. Visual Rewards & Animations** ✨
+- **Confetti Burst**: Enhanced explosion with more particles
+- **Progress Bar**: Fill up as you complete daily goals
+- **Level System**: "Level 3 Task Master" with XP points
+- **Task Completion Counter**: "You've completed 47 tasks total!"
+- **Streak Fire**: Animated flame that grows with longer streaks
+
+### **3. FOMO Elements** ⏰
+- **Daily Reset Timer**: "2h 15m until daily goals reset"
+- **Streak Warning**: "Don't break your 5-day streak!"
+- **Weekly Progress**: "You're 3 tasks away from this week's goal"
+- **Achievement Notifications**: "You're 1 task away from unlocking 'Task Master' badge!"
+
+### **4. Satisfaction Mechanics** 😌
+- **Completion Sounds**: Different sounds for different achievements
+- **Visual Feedback**: Task fades out with sparkle effect
+- **Progress Celebration**: "Amazing! You're on fire today! 🔥"
+- **Statistics Dashboard**: Show productivity trends
+- **Personal Records**: "New record: 8 tasks in one day!"
+
+### **5. Social/Competitive Elements** 👥
+- **Personal Leaderboard**: "You're in the top 10% this week"
+- **Achievement Sharing**: "I just completed my 50th task! 🎉"
+- **Weekly Challenges**: "Beat last week's record of 15 tasks"
+
+### **6. Unlockable Content** 🎁
+- **New Themes**: Unlock dark mode, color themes
+- **Custom Sounds**: Unlock different completion sounds
+- **Motivational Quotes**: Unlock new motivational messages
+- **Custom Icons**: Unlock different app icons
+
+### **7. Habit Building** 📈
+- **Habit Tracker**: Visual calendar showing completed days
+- **Productivity Score**: Daily/weekly productivity rating
+- **Focus Time Tracking**: Track time spent in focus mode
+- **Break Reminders**: "You've been focused for 45 minutes, take a break!"
+
+## 🎯 Implementation Priority
+
+**Phase 1 (Quick Wins):**
+1. Streak counter in header
+2. Daily task counter
+3. Enhanced completion animations
+4. Achievement notifications
+
+**Phase 2 (Engagement):**
+1. Progress bars and visual feedback
+2. Level system with XP
+3. Statistics dashboard
+4. Unlockable themes
+
+**Phase 3 (Advanced):**
+1. Social features
+2. Advanced analytics
+3. Custom challenges
+4. Habit tracking
+
+## 💡 Specific UI Suggestions
+
+**Header Enhancement:**
+```
+FocusAI 🔥 3-day streak
+"Add your first task" | Daily: 3/5 tasks
+```
+
+**Task Completion:**
+- Show streak count after each completion
+- Display daily progress
+- Animate achievement unlocks
+- Play different sounds for milestones
+
+**Done Tab Enhancement:**
+- Show total completed tasks
+- Display current streak
+- Show weekly/monthly statistics
+- Achievement gallery
+
+Would you like me to implement any of these features? I'd recommend starting with the streak counter and daily task goals as they're highly motivating and relatively easy to implement!
+
+---
+
+_**User (2025-10-19 01:57Z)**_
+
+in a nutshell, this is too long, give me breif over look ui and ux with best practice that you think as a product manager of what would make the users mostly stick, and give it a rank between 1-10. 
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+## 🎯 Gamification UX Strategy (Product Manager View)
+
+### **Top 3 High-Impact Features** (Ranked by User Stickiness)
+
+#### **1. Streak Counter** 🔥
+- **UI**: Small fire emoji + number in header
+- **UX**: "3-day streak! Don't break it!"
+- **Stickiness**: **9/10** - Classic FOMO, minimal effort
+- **Implementation**: 2 hours
+
+#### **2. Daily Progress Bar** 📊
+- **UI**: Thin progress bar under header
+- **UX**: "3/5 tasks today" with visual fill
+- **Stickiness**: **8/10** - Clear goal, satisfying completion
+- **Implementation**: 1 hour
+
+#### **3. Completion Celebration** ✨
+- **UI**: Enhanced confetti + sound + counter
+- **UX**: "Task 47 completed! 🔥"
+- **Stickiness**: **7/10** - Immediate satisfaction
+- **Implementation**: 3 hours
+
+### **Quick Win Implementation** (4 hours total)
+
+```
+Header Layout:
+┌─────────────────────────────────┐
+│ FocusAI 🔥3  "Keep it up!"     │  ← Streak + motivation
+│ ████████░░ 4/5 tasks today     │  ← Progress bar
+└─────────────────────────────────┘
+```
+
+**Why These Work:**
+- **Streak**: Creates daily habit loop
+- **Progress**: Clear, achievable goals
+- **Celebration**: Dopamine hit on completion
+
+**Skip These** (Low ROI):
+- Complex achievement systems
+- Social features
+- Unlockable content
+- Statistics dashboards
+
+**Result**: Simple, addictive, builds habits without complexity.
+
+---
+
+_**User (2025-10-19 01:57Z)**_
+
+ok do it! but the celebration are seen only when 10/10 is completed, or 7/7....
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [-] Add streak counter system with storage and calculation logic
+- [ ] Add daily progress bar UI with task counter (e.g., 4/5 tasks)
+- [ ] Implement enhanced celebration animation for 100% completion (10/10, 7/7)
+- [ ] Update header UI to display streak and progress bar
+- [ ] Update CSS for gamification elements (streak, progress bar, celebration)
+
+---
+
+Perfect! Let me implement the gamification features. I'll start by creating a new gamification manager file:
+
+---
+
+Tool use: **write**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/gamification.js</summary>
+
+**Chunk 1**
+Lines added: 310, lines removed: 1
+
+```diff
+@@ -1,1 +1,310 @@
+- 
++ // Gamification Manager for FocusAI
++ export class GamificationManager {
++   constructor() {
++     this.elements = {
++       streakDisplay: null,
++       progressBar: null,
++       progressText: null
++     };
++     this.dailyGoal = 5; // Default daily goal
++   }
++ 
++   // Initialize gamification
++   async init() {
++     this.createGamificationUI();
++     await this.updateStreak();
++     await this.updateDailyProgress();
++     
++     // Listen for storage changes to update UI
++     chrome.storage.onChanged.addListener((changes, namespace) => {
++       if (namespace === 'local') {
++         if (changes.completedTasks) {
++           this.updateDailyProgress();
++           this.updateStreak();
++         }
++       }
++     });
++   }
++ 
++   // Create gamification UI elements
++   createGamificationUI() {
++     const header = document.querySelector('.header');
++     if (!header) return;
++ 
++     // Create gamification container
++     const gamificationContainer = document.createElement('div');
++     gamificationContainer.className = 'gamification-container';
++     gamificationContainer.innerHTML = `
++       <div class="streak-display" id="streak-display">
++         🔥 <span id="streak-count">0</span>
++       </div>
++       <div class="progress-container">
++         <div class="progress-bar-bg">
++           <div class="progress-bar-fill" id="progress-bar-fill"></div>
++         </div>
++         <div class="progress-text" id="progress-text">0/5 tasks today</div>
++       </div>
++     `;
++ 
++     // Insert after header
++     header.insertAdjacentElement('afterend', gamificationContainer);
++ 
++     // Store references
++     this.elements.streakDisplay = document.getElementById('streak-display');
++     this.elements.progressBar = document.getElementById('progress-bar-fill');
++     this.elements.progressText = document.getElementById('progress-text');
++   }
++ 
++   // Update streak counter
++   async updateStreak() {
++     const result = await chrome.storage.local.get(['streakData', 'completedTasks']);
++     const completedTasks = result.completedTasks || [];
++     
++     let streakData = result.streakData || {
++       currentStreak: 0,
++       lastCompletionDate: null,
++       longestStreak: 0
++     };
++ 
++     // Get today's date (YYYY-MM-DD format)
++     const today = new Date().toISOString().split('T')[0];
++     
++     // Check if user completed any tasks today
++     const todaysTasks = completedTasks.filter(task => {
++       const taskDate = new Date(task.completedAt).toISOString().split('T')[0];
++       return taskDate === today;
++     });
++ 
++     // Update streak logic
++     if (todaysTasks.length > 0) {
++       const lastDate = streakData.lastCompletionDate;
++       
++       if (!lastDate) {
++         // First task ever
++         streakData.currentStreak = 1;
++         streakData.lastCompletionDate = today;
++       } else if (lastDate !== today) {
++         // Check if yesterday
++         const yesterday = new Date();
++         yesterday.setDate(yesterday.getDate() - 1);
++         const yesterdayStr = yesterday.toISOString().split('T')[0];
++         
++         if (lastDate === yesterdayStr) {
++           // Continue streak
++           streakData.currentStreak += 1;
++         } else {
++           // Streak broken, restart
++           streakData.currentStreak = 1;
++         }
++         streakData.lastCompletionDate = today;
++       }
++       
++       // Update longest streak
++       if (streakData.currentStreak > streakData.longestStreak) {
++         streakData.longestStreak = streakData.currentStreak;
++       }
++       
++       // Save updated streak data
++       await chrome.storage.local.set({ streakData });
++     }
++ 
++     // Update UI
++     if (this.elements.streakDisplay) {
++       const streakCount = document.getElementById('streak-count');
++       if (streakCount) {
++         streakCount.textContent = streakData.currentStreak;
++       }
++       
++       // Add pulsing animation for streaks > 0
++       if (streakData.currentStreak > 0) {
++         this.elements.streakDisplay.classList.add('active');
++       } else {
++         this.elements.streakDisplay.classList.remove('active');
++       }
++     }
++   }
++ 
++   // Update daily progress
++   async updateDailyProgress() {
++     const result = await chrome.storage.local.get(['completedTasks', 'dailyGoal']);
++     const completedTasks = result.completedTasks || [];
++     const dailyGoal = result.dailyGoal || this.dailyGoal;
++ 
++     // Get today's completed tasks
++     const today = new Date().toISOString().split('T')[0];
++     const todaysTasks = completedTasks.filter(task => {
++       const taskDate = new Date(task.completedAt).toISOString().split('T')[0];
++       return taskDate === today;
++     });
++ 
++     const completedCount = todaysTasks.length;
++     const percentage = Math.min((completedCount / dailyGoal) * 100, 100);
++ 
++     // Update progress bar
++     if (this.elements.progressBar) {
++       this.elements.progressBar.style.width = `${percentage}%`;
++       
++       // Add completion class when 100%
++       if (percentage === 100) {
++         this.elements.progressBar.classList.add('complete');
++       } else {
++         this.elements.progressBar.classList.remove('complete');
++       }
++     }
++ 
++     // Update progress text
++     if (this.elements.progressText) {
++       this.elements.progressText.textContent = `${completedCount}/${dailyGoal} tasks today`;
++     }
++ 
++     // Check for goal completion celebration
++     if (completedCount === dailyGoal && percentage === 100) {
++       await this.checkForCelebration(completedCount, dailyGoal);
++     }
++   }
++ 
++   // Check if we should celebrate (only once per goal completion)
++   async checkForCelebration(completedCount, dailyGoal) {
++     const today = new Date().toISOString().split('T')[0];
++     const result = await chrome.storage.local.get('lastCelebrationDate');
++     const lastCelebrationDate = result.lastCelebrationDate;
++ 
++     // Only celebrate once per day when goal is reached
++     if (lastCelebrationDate !== today) {
++       await chrome.storage.local.set({ lastCelebrationDate: today });
++       this.triggerGoalCompletionCelebration();
++     }
++   }
++ 
++   // Trigger celebration when daily goal is completed
++   triggerGoalCompletionCelebration() {
++     console.log('🎉 GOAL COMPLETED! Triggering celebration!');
++     
++     // Play explosion sound
++     this.playExplosionSound();
++     
++     // Create massive confetti explosion
++     this.createMassiveConfetti();
++     
++     // Show celebration message
++     this.showCelebrationMessage();
++     
++     // Update motivation text
++     if (window.UIManager) {
++       const motivationText = document.getElementById('motivation-text');
++       if (motivationText) {
++         motivationText.textContent = "🎉 Daily goal completed! You're amazing!";
++         motivationText.style.color = 'var(--accent)';
++         
++         setTimeout(() => {
++           window.UIManager.updateMotivation();
++         }, 5000);
++       }
++     }
++   }
++ 
++   // Create massive confetti effect
++   createMassiveConfetti() {
++     const confettiContainer = document.getElementById('confetti') || document.createElement('div');
++     confettiContainer.id = 'confetti';
++     confettiContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999;';
++     
++     if (!document.getElementById('confetti')) {
++       document.body.appendChild(confettiContainer);
++     }
++ 
++     // Create 100 confetti pieces
++     for (let i = 0; i < 100; i++) {
++       setTimeout(() => {
++         const confetti = document.createElement('div');
++         const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
++         const shapes = ['circle', 'square'];
++         const shape = shapes[Math.floor(Math.random() * shapes.length)];
++         
++         confetti.style.cssText = `
++           position: absolute;
++           width: ${Math.random() * 10 + 5}px;
++           height: ${Math.random() * 10 + 5}px;
++           background: ${colors[Math.floor(Math.random() * colors.length)]};
++           border-radius: ${shape === 'circle' ? '50%' : '0'};
++           left: ${Math.random() * 100}%;
++           top: -20px;
++           opacity: 1;
++           animation: confetti-fall ${Math.random() * 3 + 2}s linear forwards;
++           transform: rotate(${Math.random() * 360}deg);
++         `;
++         
++         confettiContainer.appendChild(confetti);
++         
++         setTimeout(() => confetti.remove(), 5000);
++       }, i * 20);
++     }
++   }
++ 
++   // Show celebration message
++   showCelebrationMessage() {
++     const message = document.createElement('div');
++     message.className = 'celebration-message';
++     message.innerHTML = `
++       <div class="celebration-content">
++         <div class="celebration-emoji">🎉</div>
++         <div class="celebration-title">Daily Goal Completed!</div>
++         <div class="celebration-subtitle">You're on fire! Keep it up! 🔥</div>
++       </div>
++     `;
++     
++     document.body.appendChild(message);
++     
++     // Animate in
++     setTimeout(() => {
++       message.classList.add('show');
++     }, 100);
++     
++     // Remove after 4 seconds
++     setTimeout(() => {
++       message.classList.remove('show');
++       setTimeout(() => message.remove(), 300);
++     }, 4000);
++   }
++ 
++   // Play explosion sound
++   playExplosionSound() {
++     try {
++       const audio = new Audio('explosion-01.mp3');
++       audio.volume = 0.8;
++       audio.play().catch(e => {
++         console.log('❌ Explosion sound play failed:', e);
++       });
++       console.log('💥 Playing celebration explosion sound');
++     } catch (error) {
++       console.error('❌ Failed to play explosion sound:', error);
++     }
++   }
++ 
++   // Get current streak (for external use)
++   async getCurrentStreak() {
++     const result = await chrome.storage.local.get('streakData');
++     const streakData = result.streakData || { currentStreak: 0 };
++     return streakData.currentStreak;
++   }
++ 
++   // Get today's progress (for external use)
++   async getTodaysProgress() {
++     const result = await chrome.storage.local.get(['completedTasks', 'dailyGoal']);
++     const completedTasks = result.completedTasks || [];
++     const dailyGoal = result.dailyGoal || this.dailyGoal;
++ 
++     const today = new Date().toISOString().split('T')[0];
++     const todaysTasks = completedTasks.filter(task => {
++       const taskDate = new Date(task.completedAt).toISOString().split('T')[0];
++       return taskDate === today;
++     });
++ 
++     return {
++       completed: todaysTasks.length,
++       goal: dailyGoal,
++       percentage: Math.min((todaysTasks.length / dailyGoal) * 100, 100)
++     };
++   }
++ }
++ 
 ```
 
 </details>

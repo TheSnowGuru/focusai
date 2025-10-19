@@ -48,6 +48,166 @@ html, body {
   border-bottom: 1px solid var(--border);
 }
 
+/* Gamification Container */
+.gamification-container {
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Streak Display */
+.streak-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 6px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.streak-display.active {
+  border-color: #ff6b35;
+  background: #fff5f0;
+  animation: pulse-streak 2s ease-in-out infinite;
+}
+
+@keyframes pulse-streak {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+#streak-count {
+  color: #ff6b35;
+  font-size: 18px;
+}
+
+/* Progress Container */
+.progress-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 10px;
+  transition: width 0.5s ease, background 0.3s ease;
+  width: 0%;
+}
+
+.progress-bar-fill.complete {
+  background: linear-gradient(90deg, #ff6b35, #ffd93d);
+  animation: progress-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 107, 53, 0.8);
+  }
+}
+
+.progress-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: right;
+}
+
+/* Celebration Message */
+.celebration-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.celebration-message.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.celebration-content {
+  background: white;
+  padding: 32px 40px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  border: 3px solid var(--accent);
+}
+
+.celebration-emoji {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: bounce-celebration 0.6s ease-in-out;
+}
+
+@keyframes bounce-celebration {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.celebration-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.celebration-subtitle {
+  font-size: 16px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Confetti Animation */
+@keyframes confetti-fall {
+  0% {
+    top: -20px;
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+    transform: translateY(20px) rotate(720deg);
+  }
+}
+
 .header-left {
   display: flex;
   align-items: flex-start;

@@ -187,6 +187,9 @@ export class DoneTabManager {
       return;
     }
 
+    // Play explosion sound for clearing all tasks
+    this.playExplosionSound();
+
     await chrome.storage.local.set({ completedTasks: [] });
     
     // Show success message
@@ -206,6 +209,20 @@ export class DoneTabManager {
     
     // Refresh the display
     this.showDoneTasks();
+  }
+
+  // Play explosion sound when clearing all tasks
+  playExplosionSound() {
+    try {
+      const audio = new Audio('explosion-01.mp3');
+      audio.volume = 0.7;
+      audio.play().catch(e => {
+        console.log('❌ Explosion sound play failed:', e);
+      });
+      console.log('💥 Playing explosion sound for clear all');
+    } catch (error) {
+      console.error('❌ Failed to play explosion sound:', error);
+    }
   }
 
   // Format date for display
