@@ -379,10 +379,18 @@ export class TaskManager {
           <p class="task-title">${this.escapeHtml(task.text)}</p>
         </div>
         <div class="task-actions">
+          <button class="ai-btn" aria-label="Open in ChatGPT" title="Open in ChatGPT to enhance and finish this task">AI✨</button>
           <button class="edit-btn" aria-label="Edit task" title="Edit task">✏️</button>
           <button class="complete-btn" aria-label="Complete task" title="Complete and delete">✓</button>
         </div>
       `;
+
+      // AI button handler
+      const aiBtn = li.querySelector('.ai-btn');
+      aiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openInChatGPT(task.text);
+      });
 
       // Edit button handler
       const editBtn = li.querySelector('.edit-btn');
@@ -516,6 +524,136 @@ export class TaskManager {
     this.allTasks[this.currentTabId] = [];
     await this.saveTasks();
     this.render();
+  }
+
+  // Open task in ChatGPT with enhanced prompt
+  async openInChatGPT(taskText) {
+    if (!taskText || taskText.trim().length === 0) {
+      console.log('❌ No task text to send to ChatGPT');
+      return;
+    }
+
+    // Enhancement prompt template
+    const enhancementPrompt = `You are an advanced AI assistant improving and completing tasks.
+
+1. Rewrite and enhance the user's task so it's clear, specific, and ready to execute.
+2. If needed, make assumptions that speed up completion and explain them briefly.
+3. Complete the task directly.
+4. Always provide a clickable URL at the end that lets the user instantly finalize or access results faster (for example: generated file, image prompt, API link, or website suggestion).
+
+----- USER TASK BELOW -----
+«««
+${taskText}
+»»»`;
+
+    // Truncate if too long (keep under 3000 chars for URL safety)
+    const maxLength = 3000;
+    const finalPrompt = enhancementPrompt.length > maxLength 
+      ? enhancementPrompt.substring(0, maxLength - 50) + '\n\n[Task truncated for URL length]'
+      : enhancementPrompt;
+
+    try {
+      // Copy the enhanced prompt to clipboard
+      await navigator.clipboard.writeText(finalPrompt);
+      console.log('📋 Enhanced prompt copied to clipboard');
+      
+      // Open ChatGPT in new tab
+      const chatgptUrl = 'https://chat.openai.com/';
+      window.open(chatgptUrl, '_blank', 'noopener,noreferrer');
+      
+      // Show notification to paste
+      this.showNotification('Enhanced prompt copied! Paste it in ChatGPT (Ctrl+V)', 'success');
+      
+      console.log('🚀 Opening ChatGPT with enhanced task:', taskText);
+      
+      // Optional: Track analytics event
+      this.trackAIClick(taskText);
+    } catch (error) {
+      console.error('❌ Failed to copy to clipboard:', error);
+      
+      // Fallback: try URL encoding approach
+      const encodedPrompt = encodeURIComponent(finalPrompt);
+      const chatgptUrl = `https://chat.openai.com/?q=${encodedPrompt}`;
+      
+      try {
+        window.open(chatgptUrl, '_blank', 'noopener,noreferrer');
+        this.showNotification('ChatGPT opened with task query', 'info');
+      } catch (urlError) {
+        console.error('❌ Failed to open ChatGPT:', urlError);
+        this.showNotification('Failed to open ChatGPT. Please try again.', 'error');
+      }
+    }
+  }
+
+  // Track AI button click for analytics (optional)
+  trackAIClick(taskText) {
+    try {
+      // You can add analytics tracking here
+      const eventData = {
+        taskLength: taskText.length,
+        hasContext: taskText.length > 50,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('📊 AI Button Click:', eventData);
+      
+      // Example: Send to analytics service
+      // analytics.track('open_in_chatgpt_ai_star', eventData);
+    } catch (error) {
+      console.log('Analytics tracking failed:', error);
+    }
+  }
+
+  // Fallback: Copy URL to clipboard if window.open fails
+  async fallbackCopyToClipboard(url) {
+    try {
+      await navigator.clipboard.writeText(url);
+      console.log('📋 ChatGPT URL copied to clipboard');
+      
+      // Show user notification
+      this.showNotification('ChatGPT URL copied to clipboard!', 'info');
+    } catch (error) {
+      console.error('❌ Failed to copy to clipboard:', error);
+      this.showNotification('Failed to open ChatGPT. Please try again.', 'error');
+    }
+  }
+
+  // Show notification to user
+  showNotification(message, type = 'info') {
+    // Create a simple notification
+    const notification = document.createElement('div');
+    
+    // Set background color based on type
+    let backgroundColor = '#007bff'; // default info
+    if (type === 'error') backgroundColor = '#dc3545';
+    if (type === 'success') backgroundColor = '#28a745';
+    
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${backgroundColor};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      animation: slideIn 0.3s ease-out;
+      max-width: 300px;
+      word-wrap: break-word;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 4 seconds for success messages (longer for instructions)
+    const duration = type === 'success' ? 4000 : 3000;
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in forwards';
+      setTimeout(() => notification.remove(), 300);
+    }, duration);
   }
 }
 
