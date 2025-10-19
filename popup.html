@@ -17,79 +17,46 @@
           <div id="motivation-text" class="motivation-text"></div>
         </div>
       </div>
-      <div class="header-right">
-        <button id="auth-btn" class="auth-btn">Login</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Tab Bar -->
+      <div id="tab-bar" class="tab-bar"></div>
+
+      <!-- Task Section -->
+      <div class="task-section">
+        <div class="task-header">
+          <div class="task-title-section">
+            <h2>My Tasks</h2>
+            <div class="drag-hint" title="Drag tasks to reorder by importance">⋮⋮</div>
+          </div>
+        </div>
+
+        <!-- Inline Add Task Input -->
+        <div class="add-task-row">
+          <input id="add-task-input" type="text" placeholder="Add a task and press Enter" />
+          <button id="add-task-btn" class="primary-btn"><span class="btn-icon">+</span> Add</button>
+        </div>
+
+        <div class="tasks-container">
+          <ul id="task-list"></ul>
+        </div>
+
+        <div id="confetti" aria-hidden="true"></div>
       </div>
     </div>
 
-    <!-- Main Timer View -->
-    <div id="view-timer" class="hidden">
-      <div class="main-content">
-        <!-- Tab Bar -->
-        <div id="tab-bar" class="tab-bar"></div>
-
-        <!-- Task Section -->
-        <div class="task-section">
-          <div class="task-header">
-            <div class="task-title-section">
-              <h2>My Tasks</h2>
-              <div class="drag-hint" title="Drag tasks to reorder by importance">⋮⋮</div>
-            </div>
-          </div>
-
-          <!-- Inline Add Task Input -->
-          <div class="add-task-row">
-            <input id="add-task-input" type="text" placeholder="Add a task and press Enter" />
-            <button id="add-task-btn" class="primary-btn"><span class="btn-icon">+</span> Add</button>
-          </div>
-
-          <div class="tasks-container">
-            <ul id="task-list"></ul>
-          </div>
-
-          <div id="confetti" aria-hidden="true"></div>
-        </div>
-      </div>
-
-      <!-- Pomodoro Footer (at very bottom) -->
-      <div class="pomodoro-footer">
-        <div class="pomodoro-left">
-          <button id="start-stop" class="primary-btn">Start</button>
-          <button id="restart" class="restart-btn" aria-label="Restart timer" title="Restart timer">🔄</button>
-          <div id="time" class="timer-time">25:00</div>
-          <div class="duration-controls">
-            <button id="duration-down" class="duration-btn">-</button>
-            <input id="duration-input" type="text" value="25" class="duration-input" />
-            <button id="duration-up" class="duration-btn">+</button>
-          </div>
-        </div>
-        <div class="pomodoro-right">
-          <button id="play-music" class="music-btn" aria-label="Play music">🎵</button>
-          <button id="prev" class="ghost" aria-label="Previous track">⏮️</button>
-          <button id="next" class="ghost" aria-label="Next track">⏭️</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hidden Spotify Player (shown when music is playing) -->
-    <div id="spotify-player" class="spotify-player hidden">
-      <div class="player-header">
-        <span class="player-title">Now Playing</span>
-        <button id="close-player" class="close-btn">×</button>
-      </div>
-      <div id="spotify-embed" class="spotify-embed"></div>
-    </div>
-
-    <!-- Login View -->
-    <div id="view-login" class="login-card">
-      <div class="login-content">
-        <h2>Login to Spotify</h2>
-        <p>Connect your Spotify account to play focus music during your sessions.</p>
-        <button id="login-spotify" class="spotify-btn">
-          Login with Spotify
-        </button>
-        <div class="redirect-info">
-          Redirect URI: <code id="redirect-uri"></code>
+    <!-- Pomodoro Footer (at very bottom) -->
+    <div class="pomodoro-footer">
+      <div class="pomodoro-left">
+        <button id="start-stop" class="primary-btn">Start</button>
+        <button id="restart" class="restart-btn" aria-label="Restart timer" title="Restart timer">🔄</button>
+        <div id="time" class="timer-time">25:00</div>
+        <div class="duration-controls">
+          <button id="duration-down" class="duration-btn">-</button>
+          <input id="duration-input" type="text" value="25" class="duration-input" />
+          <button id="duration-up" class="duration-btn">+</button>
         </div>
       </div>
     </div>

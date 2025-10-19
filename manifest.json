@@ -2,18 +2,12 @@
   "manifest_version": 3,
   "name": "FocusAI",
   "version": "1.0.0",
-  "description": "Click the bubble to start a 25-minute focus session with healing tracks from Spotify. Click again to stop.",
+  "description": "Focus on your tasks with a clean, distraction-free pomodoro timer. Organize tasks by priority and track your productivity.",
   "action": {
     "default_title": "FocusAI",
     "default_popup": "popup.html"
   },
-  "permissions": ["alarms", "notifications", "storage", "offscreen", "tabs", "scripting", "identity", "webNavigation"],
-  "host_permissions": [
-    "https://open.spotify.com/*",
-    "https://api.spotify.com/*",
-    "https://accounts.spotify.com/*",
-    "https://*.chromiumapp.org/*"
-  ],
+  "permissions": ["alarms", "notifications", "storage", "offscreen"],
   "background": {
     "service_worker": "background.js"
   },

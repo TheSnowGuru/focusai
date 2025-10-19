@@ -228,62 +228,6 @@ html, body {
   z-index: 100;
 }
 
-/* Spotify Player */
-.spotify-player {
-  position: fixed;
-  bottom: 1.5cm;
-  left: 0;
-  right: 0;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-  z-index: 99;
-  transition: transform 0.3s ease;
-}
-
-.spotify-player.hidden {
-  transform: translateY(100%);
-}
-
-.player-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-.player-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 16px;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.close-btn:hover {
-  background: var(--hover);
-  color: var(--text);
-}
-
-.spotify-embed {
-  height: 80px;
-  border: none;
-}
-
-.spotify-embed iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
 
 .pomodoro-left {
   display: flex;
@@ -308,11 +252,6 @@ html, body {
   transform: rotate(180deg);
 }
 
-.pomodoro-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .timer-time {
   font-size: 16px;
@@ -607,99 +546,7 @@ html, body {
   color: white;
 }
 
-/* Music button */
-.music-btn {
-  background: #1DB954;
-  border: none;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-right: 4px;
-}
 
-.music-btn:hover {
-  background: #1ed760;
-  transform: scale(1.05);
-}
-
-.music-btn.playing {
-  background: #dc3545;
-}
-
-.music-btn.playing:hover {
-  background: #c82333;
-}
-
-/* Ghost buttons */
-.ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ghost:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-/* Login Card */
-.login-card {
-  padding: 24px 20px;
-  text-align: center;
-}
-
-.login-content h2 {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: var(--text);
-}
-
-.login-content p {
-  font-size: 14px;
-  color: var(--muted);
-  margin: 0 0 20px 0;
-  line-height: 1.5;
-}
-
-.spotify-btn {
-  background: #1DB954;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  margin-bottom: 16px;
-}
-
-.spotify-btn:hover {
-  background: #1ed760;
-}
-
-.redirect-info {
-  font-size: 11px;
-  color: var(--muted);
-  background: var(--panel);
-  padding: 8px;
-  border-radius: 4px;
-  word-break: break-all;
-}
-
-.redirect-info code {
-  font-family: monospace;
-  color: var(--primary);
-}
 
 /* Utility Classes */
 .hidden {

@@ -51,34 +51,6 @@ export class UIManager {
     });
   }
 
-  static toggleViews(isAuthed) {
-    console.log('🔄 Toggle views - isAuthed:', isAuthed);
-    
-    const $viewTimer = document.getElementById('view-timer');
-    const $viewLogin = document.getElementById('view-login');
-    const $authBtn = document.getElementById('auth-btn');
-    
-    if ($viewTimer) {
-      $viewTimer.classList.toggle('hidden', !isAuthed);
-    }
-    if ($viewLogin) {
-      $viewLogin.classList.toggle('hidden', !!isAuthed);
-    }
-    
-    // Update auth button
-    if ($authBtn) {
-      if (isAuthed) {
-        $authBtn.textContent = 'Logout';
-        $authBtn.style.background = '#dc3545';
-      } else {
-        $authBtn.textContent = 'Login';
-        $authBtn.style.background = '#007bff';
-      }
-    }
-    
-    console.log('Timer visible:', !$viewTimer?.classList.contains('hidden'));
-    console.log('Login visible:', !$viewLogin?.classList.contains('hidden'));
-  }
 
   static celebrate() {
     const $confetti = document.getElementById('confetti');
@@ -126,61 +98,4 @@ export class UIManager {
     }
   }
 
-  static initAuthButton() {
-    const $authBtn = document.getElementById('auth-btn');
-    if (!$authBtn) return;
-    
-    $authBtn.addEventListener('click', async () => {
-      const { AuthManager } = await import('./auth.js');
-      const isAuthed = await AuthManager.checkExistingSession();
-      
-      if (isAuthed) {
-        // Logout
-        if (confirm('Are you sure you want to logout?')) {
-          await AuthManager.logout();
-          this.toggleViews(false);
-        }
-      } else {
-        // Login
-        try {
-          await AuthManager.loginWithSpotify();
-          this.toggleViews(true);
-        } catch (e) {
-          console.error('Login failed:', e);
-          alert('Login failed. Please try again.\n\nError: ' + e.message);
-        }
-      }
-    });
-  }
-
-  static initAuthHandlers() {
-    // Display redirect URI in the login card
-    const redirectUri = chrome.identity.getRedirectURL('callback');
-    const redirectDisplay = document.getElementById('redirect-uri');
-    
-    console.log('📋 Redirect URI:', redirectUri);
-    
-    if (redirectDisplay) {
-      redirectDisplay.textContent = redirectUri;
-    }
-    
-    const $loginBtn = document.getElementById('login-spotify');
-    if ($loginBtn) {
-      $loginBtn.addEventListener('click', async () => {
-        $loginBtn.disabled = true;
-        $loginBtn.textContent = 'Opening Spotify...';
-        
-        try {
-          const { AuthManager } = await import('./auth.js');
-          await AuthManager.loginWithSpotify();
-          this.toggleViews(true);
-        } catch (e) {
-          console.error('Login failed:', e);
-          alert('Spotify login failed. Please try again.\n\nError: ' + e.message);
-          $loginBtn.disabled = false;
-          $loginBtn.textContent = 'Login with Spotify';
-        }
-      });
-    }
-  }
 }

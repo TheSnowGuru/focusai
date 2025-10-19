@@ -1,6 +1,5 @@
 // Timer management
 import { StorageManager } from './storage.js';
-import { SpotifyManager } from './spotify.js';
 
 export class TimerManager {
   constructor() {
@@ -14,15 +13,11 @@ export class TimerManager {
       time: document.getElementById('time'),
       startStop: document.getElementById('start-stop'),
       restart: document.getElementById('restart'),
-      playMusic: document.getElementById('play-music'),
-      prev: document.getElementById('prev'),
-      next: document.getElementById('next'),
       durationInput: document.getElementById('duration-input'),
       durationUp: document.getElementById('duration-up'),
       durationDown: document.getElementById('duration-down')
     };
     
-    this.isMusicPlaying = false;
     this.isPaused = false;
     this.pausedTimeRemaining = null;
     this.initEventListeners();
@@ -37,18 +32,6 @@ export class TimerManager {
     
     if (this.elements.restart) {
       this.elements.restart.addEventListener('click', () => this.restartTimer());
-    }
-    
-    if (this.elements.playMusic) {
-      this.elements.playMusic.addEventListener('click', () => this.toggleMusic());
-    }
-    
-    if (this.elements.prev) {
-      this.elements.prev.addEventListener('click', () => this.prevTrack());
-    }
-    
-    if (this.elements.next) {
-      this.elements.next.addEventListener('click', () => this.nextTrack());
     }
 
     if (this.elements.durationUp) {
@@ -143,118 +126,13 @@ export class TimerManager {
     console.log('🔄 Timer restarted');
   }
 
-  async toggleMusic() {
-    if (this.isMusicPlaying) {
-      await this.stopMusic();
-    } else {
-      await this.startMusic();
-    }
-  }
-
-  async startMusic() {
-    const track = await SpotifyManager.pickRandomTrack();
-    if (track) {
-      console.log('🎵 Starting music with track:', track.name);
-      
-      // Show embedded Spotify player initially
-      this.showSpotifyPlayer(track);
-      
-      // Try the offscreen playback first
-      await SpotifyManager.playTrack(track);
-      
-      // Open Spotify in a new tab as fallback and hide embedded player
-      setTimeout(async () => {
-        try {
-          await chrome.tabs.create({ 
-            url: track.url,
-            active: false // Open in background
-          });
-          console.log('🎵 Opened Spotify tab for track:', track.name);
-          
-          // Hide the embedded player after opening browser tab
-          setTimeout(() => {
-            this.hideSpotifyPlayer();
-            console.log('🎵 Hidden embedded player after browser playback started');
-          }, 1000); // Hide after 1 second
-          
-        } catch (error) {
-          console.log('🎵 Could not open Spotify tab:', error);
-        }
-      }, 2000); // Wait 2 seconds to see if offscreen playback works
-      
-      this.isMusicPlaying = true;
-      this.updateMusicButton();
-    } else {
-      console.log('🎵 No tracks available');
-    }
-  }
-
-  async stopMusic() {
-    await SpotifyManager.stopPlayback();
-    this.isMusicPlaying = false;
-    this.updateMusicButton();
-    this.hideSpotifyPlayer();
-  }
-
-  showSpotifyPlayer(track) {
-    const player = document.getElementById('spotify-player');
-    const embed = document.getElementById('spotify-embed');
-    
-    if (player && embed && track) {
-      // Extract track ID from URL
-      const trackId = track.url.match(/track\/([A-Za-z0-9]+)/)?.[1];
-      if (trackId) {
-        embed.innerHTML = `
-          <iframe 
-            src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0" 
-            width="100%" 
-            height="80" 
-            frameBorder="0" 
-            allowfullscreen="" 
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-            loading="lazy">
-          </iframe>
-        `;
-      }
-      
-      player.classList.remove('hidden');
-      
-      // Add close button listener
-      const closeBtn = document.getElementById('close-player');
-      if (closeBtn) {
-        closeBtn.onclick = () => this.hideSpotifyPlayer();
-      }
-    }
-  }
-
-  hideSpotifyPlayer() {
-    const player = document.getElementById('spotify-player');
-    if (player) {
-      player.classList.add('hidden');
-    }
-  }
-
-  updateMusicButton() {
-    if (this.elements.playMusic) {
-      if (this.isMusicPlaying) {
-        this.elements.playMusic.textContent = '⏸️';
-        this.elements.playMusic.classList.add('playing');
-      } else {
-        this.elements.playMusic.textContent = '🎵';
-        this.elements.playMusic.classList.remove('playing');
-      }
-    }
-  }
-
   async startTimer() {
-    // Don't auto-start music - user must click music button
     const durationMs = this.DURATION_MINUTES * 60 * 1000;
     const startTime = Date.now();
     await StorageManager.setTimerState({ 
       startTime, 
       durationMs, 
-      isRunning: true, 
-      track: null 
+      isRunning: true
     });
 
     chrome.alarms.clear('focus-end', () => {
@@ -271,8 +149,7 @@ export class TimerManager {
 
     await StorageManager.setTimerState({ 
       isRunning: false, 
-      startTime: null, 
-      track: null 
+      startTime: null
     });
     chrome.alarms.clear('focus-end');
 
@@ -280,9 +157,6 @@ export class TimerManager {
     if (this.elements.time) {
       this.elements.time.textContent = this.formatTime(this.DURATION_MINUTES * 60 * 1000);
     }
-
-    // Don't auto-stop music - let user control it separately
-    // await SpotifyManager.stopPlayback();
 
     if (!silent) {
       chrome.notifications.create({
@@ -340,27 +214,10 @@ export class TimerManager {
     }
   }
 
-  async prevTrack() {
-    if (!this.isMusicPlaying) return;
-    
-    const prev = await SpotifyManager.getPrevTrack();
-    if (!prev) return;
-    
-    await SpotifyManager.playTrack(prev);
-  }
-
-  async nextTrack() {
-    if (!this.isMusicPlaying) return;
-    
-    const next = await SpotifyManager.getNextTrack();
-    if (!next) return;
-    
-    await SpotifyManager.playTrack(next);
-  }
 
   async restoreState() {
     const state = await StorageManager.getTimerState();
-    const { startTime, durationMs, isRunning, track } = state;
+    const { startTime, durationMs, isRunning } = state;
 
     if (isRunning && startTime) {
       const elapsed = Date.now() - startTime;
@@ -374,7 +231,6 @@ export class TimerManager {
         await this.stopTimer(true);
       } else {
         this.setRunningUI(true);
-        // Don't auto-start music on restore
         this.tick(left, startTime, durationMs);
       }
     } else {
@@ -453,9 +309,4 @@ export class TimerManager {
     }
   }
 
-  // Auto-start timer when task is added (DISABLED - user must manually start)
-  async autoStartOnTaskAdd() {
-    // Auto-start disabled - user must manually start timer
-    console.log('Auto-start disabled - user must manually start timer');
-  }
 }
