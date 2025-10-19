@@ -32,7 +32,7 @@ async function init() {
     // Initialize all modules
     timerManager.init();
     tabManager.init();
-    taskManager.init();
+    await taskManager.init(); // Wait for tasks to load
     UIManager.init();
     UIManager.initAuthButton();
     UIManager.initAuthHandlers();

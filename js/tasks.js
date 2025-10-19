@@ -14,8 +14,8 @@ export class TaskManager {
   }
 
   // Initialize the task manager
-  init() {
-    this.loadTasks();
+  async init() {
+    await this.loadTasks();
     this.attachEventListeners();
     this.render();
   }
