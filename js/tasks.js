@@ -134,6 +134,13 @@ export class TaskManager {
   // Switch to a different tab
   switchTab(tabId) {
     this.currentTabId = tabId;
+    
+    // If switching to done tab, let DoneTabManager handle it
+    if (tabId === 'done' && window.doneTabManager) {
+      window.doneTabManager.showDoneTasks();
+      return;
+    }
+    
     // Ensure the new tab has an array initialized
     if (!this.allTasks[this.currentTabId]) {
       this.allTasks[this.currentTabId] = [];
@@ -195,6 +202,11 @@ export class TaskManager {
     const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!taskElement) return;
 
+    // Get the task before removing it
+    const tasks = this.getCurrentTasks();
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
     // Get the position for the explosion effect
     const rect = taskElement.getBoundingClientRect();
     const listRect = this.elements.taskList.getBoundingClientRect();
@@ -207,11 +219,17 @@ export class TaskManager {
     taskElement.style.transform = 'scale(0) rotate(10deg)';
     taskElement.style.opacity = '0';
 
-    // Wait for animation then remove task
+    // Wait for animation then remove task and add to done
     setTimeout(async () => {
-      const tasks = this.getCurrentTasks();
+      // Remove from current tab
       this.setCurrentTasks(tasks.filter(t => t.id !== taskId));
       await this.saveTasks();
+      
+      // Add to done tab
+      if (window.doneTabManager) {
+        await window.doneTabManager.addToDone(task);
+      }
+      
       this.render();
     }, 300);
   }

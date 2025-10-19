@@ -32,7 +32,7 @@ html, body {
 
 /* Motivation text under logo */
 .motivation-text {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--primary);
   margin-top: 2px;
@@ -152,6 +152,62 @@ html, body {
   border-color: var(--accent) !important;
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Done Tab Styles */
+.done-task-item {
+  opacity: 0.7;
+  text-decoration: line-through;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  padding: 12px;
+}
+
+.done-task-item .task-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.done-task-item .task-details {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.clear-all-btn {
+  background: var(--danger);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.clear-all-btn:hover {
+  background: #c82333;
+  transform: scale(1.02);
+}
+
+.delete-btn {
+  background: var(--danger);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+  transform: scale(1.1);
 }
 
 /* Pomodoro Footer (at very bottom) */
