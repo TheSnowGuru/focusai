@@ -311,6 +311,9 @@ export class TimerManager {
         this.ticking = null;
         await this.stopTimer(true);
 
+        // Play completion sound
+        this.playCompletionSound();
+
         chrome.notifications.create({
           type: 'basic',
           iconUrl: 'icons/icon128.png',
@@ -434,6 +437,20 @@ export class TimerManager {
     const m = Math.floor(s / 60);
     const r = s % 60;
     return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
+  }
+
+  // Play sound when timer completes
+  playCompletionSound() {
+    try {
+      const audio = new Audio('contador-timer.mp3');
+      audio.volume = 0.8;
+      audio.play().catch(e => {
+        console.log('❌ Audio play failed:', e);
+      });
+      console.log('🔔 Playing completion sound');
+    } catch (error) {
+      console.error('❌ Failed to play completion sound:', error);
+    }
   }
 
   // Auto-start timer when task is added (DISABLED - user must manually start)
