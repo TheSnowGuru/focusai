@@ -4,10 +4,12 @@ import { TimerManager } from './js/timer.js';
 import { TabManager } from './js/tabs.js';
 import { UIManager } from './js/ui.js';
 import { SpotifyManager } from './js/spotify.js';
+import { TaskManager } from './js/tasks.js';
 
 // Global managers
 let timerManager;
 let tabManager;
+let taskManager;
 
 // Initialize the application
 async function init() {
@@ -20,14 +22,17 @@ async function init() {
     // Initialize managers
     timerManager = new TimerManager();
     tabManager = new TabManager();
+    taskManager = new TaskManager();
     
     // Make managers globally accessible for cross-module communication
     window.timerManager = timerManager;
     window.tabManager = tabManager;
+    window.taskManager = taskManager;
     
     // Initialize all modules
     timerManager.init();
     tabManager.init();
+    taskManager.init();
     UIManager.init();
     UIManager.initAuthButton();
     UIManager.initAuthHandlers();
