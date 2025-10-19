@@ -214,6 +214,9 @@ export class TaskManager {
     // Create explosion effect
     this.createExplosion(rect.left - listRect.left + rect.width / 2, rect.top - listRect.top + rect.height / 2);
 
+    // Play explosion sound
+    this.playExplosionSound();
+
     // Animate task out
     taskElement.style.transition = 'all 0.3s ease-out';
     taskElement.style.transform = 'scale(0) rotate(10deg)';
@@ -227,7 +230,10 @@ export class TaskManager {
       
       // Add to done tab
       if (window.doneTabManager) {
+        console.log('📋 Adding task to done tab:', task.text);
         await window.doneTabManager.addToDone(task);
+      } else {
+        console.log('❌ DoneTabManager not available');
       }
       
       this.render();
@@ -268,6 +274,20 @@ export class TaskManager {
       
       // Remove particle after animation
       setTimeout(() => particle.remove(), 1200);
+    }
+  }
+
+  // Play explosion sound when task is completed
+  playExplosionSound() {
+    try {
+      const audio = new Audio('explosion-01.mp3');
+      audio.volume = 0.7;
+      audio.play().catch(e => {
+        console.log('❌ Explosion sound play failed:', e);
+      });
+      console.log('💥 Playing explosion sound');
+    } catch (error) {
+      console.error('❌ Failed to play explosion sound:', error);
     }
   }
 

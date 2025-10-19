@@ -210,6 +210,23 @@ html, body {
   transform: scale(1.1);
 }
 
+.restore-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 6px;
+}
+
+.restore-btn:hover {
+  background: #0056b3;
+  transform: scale(1.1);
+}
+
 /* Pomodoro Footer (at very bottom) */
 .pomodoro-footer {
   position: fixed;

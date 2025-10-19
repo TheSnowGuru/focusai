@@ -10,31 +10,7 @@ export class DoneTabManager {
 
   // Initialize the done tab manager
   init() {
-    this.addDoneTab();
     this.attachEventListeners();
-  }
-
-  // Add Done tab to the tab bar
-  addDoneTab() {
-    if (!this.elements.tabBar) return;
-
-    // Check if Done tab already exists
-    const existingTab = this.elements.tabBar.querySelector(`[data-tab="${this.tabId}"]`);
-    if (existingTab) return;
-
-    // Find the add-tab button to insert before it
-    const addTabBtn = this.elements.tabBar.querySelector('.add-tab');
-    if (!addTabBtn) return;
-
-    // Create Done tab element
-    const doneTab = document.createElement('button');
-    doneTab.className = 'tab';
-    doneTab.dataset.tab = this.tabId;
-    doneTab.textContent = 'Done';
-    doneTab.title = 'View completed tasks';
-
-    // Insert before the add-tab button
-    this.elements.tabBar.insertBefore(doneTab, addTabBtn);
   }
 
   // Attach event listeners
@@ -44,6 +20,8 @@ export class DoneTabManager {
       this.elements.tabBar.addEventListener('click', (e) => {
         const tab = e.target.closest('.tab');
         if (tab && tab.dataset.tab === this.tabId) {
+          // Update active tab in storage
+          chrome.storage.local.set({ activeTab: this.tabId });
           this.showDoneTasks();
         }
       });
@@ -54,9 +32,13 @@ export class DoneTabManager {
   async showDoneTasks() {
     if (!this.elements.taskList) return;
 
+    console.log('📋 Showing done tasks...');
+
     // Get all completed tasks from storage
     const result = await chrome.storage.local.get('completedTasks');
     const completedTasks = result.completedTasks || [];
+
+    console.log('📋 Found completed tasks:', completedTasks.length);
 
     this.elements.taskList.innerHTML = '';
 
@@ -96,9 +78,17 @@ export class DoneTabManager {
           <p class="task-details">Completed: ${this.formatDate(task.completedAt)}</p>
         </div>
         <div class="task-actions">
+          <button class="restore-btn" aria-label="Restore to Today" title="Restore to Today">⬅️</button>
           <button class="delete-btn" aria-label="Delete permanently" title="Delete permanently">🗑️</button>
         </div>
       `;
+
+      // Restore button handler
+      const restoreBtn = li.querySelector('.restore-btn');
+      restoreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.restoreTaskToToday(task);
+      });
 
       // Delete button handler
       const deleteBtn = li.querySelector('.delete-btn');
@@ -113,6 +103,8 @@ export class DoneTabManager {
 
   // Add a task to the done list
   async addToDone(task) {
+    console.log('📋 Adding task to done list:', task.text);
+    
     const result = await chrome.storage.local.get('completedTasks');
     const completedTasks = result.completedTasks || [];
     
@@ -130,12 +122,51 @@ export class DoneTabManager {
     }
     
     await chrome.storage.local.set({ completedTasks });
+    console.log('📋 Task added to done list, total completed:', completedTasks.length);
     
     // If we're currently viewing the done tab, refresh the display
     const activeTab = this.elements.tabBar?.querySelector('.tab.active');
     if (activeTab && activeTab.dataset.tab === this.tabId) {
       this.showDoneTasks();
     }
+  }
+
+  // Restore a task back to Today tab
+  async restoreTaskToToday(task) {
+    console.log('⬅️ Restoring task to Today:', task.text);
+    
+    // Remove from completed tasks
+    const result = await chrome.storage.local.get('completedTasks');
+    const completedTasks = result.completedTasks || [];
+    const updatedCompletedTasks = completedTasks.filter(t => t.id !== task.id);
+    await chrome.storage.local.set({ completedTasks: updatedCompletedTasks });
+    
+    // Add to Today tab
+    if (window.taskManager) {
+      // Create a new task object without completedAt
+      const restoredTask = {
+        id: task.id,
+        text: task.text,
+        completed: false,
+        createdAt: task.createdAt || new Date().toISOString()
+      };
+      
+      // Get today's tasks
+      const todayTasks = window.taskManager.getAllTasks()['today'] || [];
+      todayTasks.unshift(restoredTask); // Add to beginning
+      
+      // Update today's tasks
+      window.taskManager.getAllTasks()['today'] = todayTasks;
+      await window.taskManager.saveTasks();
+      
+      console.log('⬅️ Task restored to Today tab');
+      
+      // Switch to Today tab to show the restored task
+      chrome.storage.local.set({ activeTab: 'today' });
+    }
+    
+    // Refresh the done tasks display
+    this.showDoneTasks();
   }
 
   // Delete a specific done task
