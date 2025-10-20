@@ -379,7 +379,7 @@ export class TaskManager {
           <p class="task-title">${this.escapeHtml(task.text)}</p>
         </div>
         <div class="task-actions">
-          <button class="ai-btn" aria-label="Open in ChatGPT" title="Open in ChatGPT to enhance and finish this task">AI✨</button>
+          <button class="ai-btn" aria-label="Open in ChatGPT" title="Open in ChatGPT to finish this task ✨">AI✨</button>
           <button class="edit-btn" aria-label="Edit task" title="Edit task">✏️</button>
           <button class="complete-btn" aria-label="Complete task" title="Complete and delete">✓</button>
         </div>
@@ -526,20 +526,24 @@ export class TaskManager {
     this.render();
   }
 
-  // Open task in ChatGPT with enhanced prompt
+  // Open task in AI engine with enhanced prompt
   async openInChatGPT(taskText) {
     if (!taskText || taskText.trim().length === 0) {
-      console.log('❌ No task text to send to ChatGPT');
+      console.log('❌ No task text to send to AI engine');
       return;
     }
 
+    // Get current AI engine from settings
+    const aiEngine = window.settingsManager ? window.settingsManager.getCurrentEngine() : 'chatgpt';
+    const aiUrls = window.settingsManager ? window.settingsManager.getAIEngineUrls() : { chatgpt: 'https://chatgpt.com/' };
+    
     // Enhancement prompt template
     const enhancementPrompt = `You are an advanced AI assistant improving and completing tasks.
 
 1. Rewrite and enhance the user's task so it's clear, specific, and ready to execute.
 2. If needed, make assumptions that speed up completion and explain them briefly.
 3. Complete the task directly.
-4. Always provide a clickable URL at the end that lets the user instantly finalize or access results faster (for example: generated file, image prompt, API link, or website suggestion).
+4. Always return a clickable URL for the user to complete or access results faster.
 
 ----- USER TASK BELOW -----
 «««
@@ -553,35 +557,52 @@ ${taskText}
       : enhancementPrompt;
 
     try {
-      // Copy the enhanced prompt to clipboard
-      await navigator.clipboard.writeText(finalPrompt);
-      console.log('📋 Enhanced prompt copied to clipboard');
+      // Store the prompt for the content script to pick up
+      await chrome.storage.local.set({ 
+        pendingPrompt: finalPrompt,
+        aiEngine: aiEngine
+      });
       
-      // Open ChatGPT in new tab
-      const chatgptUrl = 'https://chat.openai.com/';
-      window.open(chatgptUrl, '_blank', 'noopener,noreferrer');
+      // Open selected AI engine in new tab
+      const aiUrl = aiUrls[aiEngine] || aiUrls.chatgpt;
+      const newTab = window.open(aiUrl, '_blank', 'noopener,noreferrer');
       
-      // Show notification to paste
-      this.showNotification('Enhanced prompt copied! Paste it in ChatGPT (Ctrl+V)', 'success');
-      
-      console.log('🚀 Opening ChatGPT with enhanced task:', taskText);
-      
-      // Optional: Track analytics event
-      this.trackAIClick(taskText);
-    } catch (error) {
-      console.error('❌ Failed to copy to clipboard:', error);
-      
-      // Fallback: try URL encoding approach
-      const encodedPrompt = encodeURIComponent(finalPrompt);
-      const chatgptUrl = `https://chat.openai.com/?q=${encodedPrompt}`;
-      
-      try {
-        window.open(chatgptUrl, '_blank', 'noopener,noreferrer');
-        this.showNotification('ChatGPT opened with task query', 'info');
-      } catch (urlError) {
-        console.error('❌ Failed to open ChatGPT:', urlError);
-        this.showNotification('Failed to open ChatGPT. Please try again.', 'error');
+      if (newTab) {
+        // Wait a moment for the tab to load, then send message to content script
+        setTimeout(async () => {
+          try {
+            // Get the tab ID and send message to content script
+            const urlPattern = aiEngine === 'chatgpt' ? 'https://chatgpt.com/*' :
+                             aiEngine === 'gemini' ? 'https://gemini.google.com/*' :
+                             'https://claude.ai/*';
+            
+            const tabs = await chrome.tabs.query({ url: urlPattern });
+            if (tabs.length > 0) {
+              const tab = tabs[tabs.length - 1]; // Get the most recent tab
+              await chrome.tabs.sendMessage(tab.id, {
+                type: 'INJECT_PROMPT',
+                prompt: finalPrompt,
+                aiEngine: aiEngine
+              });
+              console.log(`✅ Prompt sent to ${aiEngine} content script`);
+            }
+          } catch (error) {
+            console.log(`⚠️ Could not send message to ${aiEngine} content script, prompt stored for auto-injection`);
+          }
+        }, 2000);
+        
+        this.showNotification(`Opening ${aiEngine.toUpperCase()} with enhanced prompt...`, 'info');
+        console.log(`🚀 Opening ${aiEngine} with enhanced task:`, taskText);
+        
+        // Track analytics event
+        this.trackAIClick(taskText);
+      } else {
+        throw new Error('Failed to open new tab');
       }
+      
+    } catch (error) {
+      console.error(`❌ Failed to open ${aiEngine}:`, error);
+      this.showNotification(`Failed to open ${aiEngine.toUpperCase()}. Please try again.`, 'error');
     }
   }
 

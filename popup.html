@@ -17,6 +17,9 @@
           <div id="motivation-text" class="motivation-text"></div>
         </div>
       </div>
+      <div class="header-right">
+        <button id="settings-btn" class="settings-btn" aria-label="Settings" title="Settings">⚙️</button>
+      </div>
     </div>
 
     <!-- Main Content -->
@@ -44,6 +47,26 @@
         </div>
 
         <div id="confetti" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <!-- Settings Page (hidden by default) -->
+    <div id="settings-page" class="settings-page hidden">
+      <div class="settings-header">
+        <button id="back-btn" class="back-btn" aria-label="Back to tasks" title="Back to tasks">←</button>
+        <h2>Settings</h2>
+      </div>
+      
+      <div class="settings-content">
+        <div class="setting-group">
+          <label for="ai-engine-select" class="setting-label">AI Engine</label>
+          <select id="ai-engine-select" class="setting-select">
+            <option value="chatgpt">ChatGPT</option>
+            <option value="gemini">Gemini</option>
+            <option value="claude">Claude</option>
+          </select>
+          <p class="setting-description">Choose which AI engine to use for task enhancement</p>
+        </div>
       </div>
     </div>
 

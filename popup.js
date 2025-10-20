@@ -5,6 +5,7 @@ import { UIManager } from './js/ui.js';
 import { TaskManager } from './js/tasks.js';
 import { DoneTabManager } from './js/done-tab.js';
 import { GamificationManager } from './js/gamification.js';
+import { SettingsManager } from './js/settings.js';
 
 // Global managers
 let timerManager;
@@ -12,6 +13,7 @@ let tabManager;
 let taskManager;
 let doneTabManager;
 let gamificationManager;
+let settingsManager;
 
 // Initialize the application
 async function init() {
@@ -24,6 +26,7 @@ async function init() {
     taskManager = new TaskManager();
     doneTabManager = new DoneTabManager();
     gamificationManager = new GamificationManager();
+    settingsManager = new SettingsManager();
     
     // Make managers globally accessible for cross-module communication
     window.timerManager = timerManager;
@@ -31,6 +34,7 @@ async function init() {
     window.taskManager = taskManager;
     window.doneTabManager = doneTabManager;
     window.gamificationManager = gamificationManager;
+    window.settingsManager = settingsManager;
     window.UIManager = UIManager;
     
     // Initialize all modules
@@ -39,6 +43,7 @@ async function init() {
     doneTabManager.init();
     await taskManager.init(); // Wait for tasks to load
     await gamificationManager.init(); // Initialize gamification
+    await settingsManager.init(); // Initialize settings
     UIManager.init();
     
     // Restore timer state
