@@ -11711,3 +11711,282 @@ Plus the "+ Add Tab" button for creating custom tabs (which won't conflict with 
 
 ---
 
+_**User (2025-10-26 02:51Z)**_
+
+ok i want to hear a plan for implmenting a custom prompt optmizer for users who has tasks and want to use ai to complete them, we have some custom @prompts.json  in this file and we can use some hardcoded method to find a keyword in that file and try to regex search it to optmize the prompt to become better, write a plan that won't include an api call, its simple way of finding the keyword with the tasks search and sending an optmized prompt for that task.
+
+---
+
+_**Assistant (default)**_
+
+I'll analyze the prompts.json file and create a plan for implementing a keyword-based prompt optimizer. Let me ask a few clarifying questions first:
+
+1. **Keyword matching strategy** - How should we match task text to prompts?
+   - a) Extract keywords from task text and match against prompt keywords field (default)
+   - b) Search for keywords in both prompt "act" and "keywords" fields
+   - c) Use a scoring system to find the best matching prompt
+
+2. **Prompt enhancement approach** - How should we combine the matched prompt with the user's task?
+   - a) Prepend the matched prompt's "act" role, then add the task (e.g., "Act as a [role]. Task: [user task]")
+   - b) Use the full matched prompt template and inject the task into it
+   - c) Create a hybrid that uses the matched prompt's context but keeps the original enhancement template
+
+3. **Fallback behavior** - What should happen if no keyword match is found?
+   - a) Use the current default enhancement prompt (default)
+   - b) Use a generic "professional assistant" prompt
+   - c) Send the task as-is without enhancement
+
+4. **Developer vs non-developer tasks** - Should we filter prompts based on the `for_devs` field?
+   - a) Ignore the for_devs field and match any prompt (default)
+   - b) Try to detect if task is technical and prefer for_devs=true prompts
+   - c) Let user choose in settings whether they want dev-focused or general prompts
+
+Please answer with the letter choices (e.g., "1a, 2b, 3a, 4a") or let me proceed with the defaults.
+
+---
+
+_**User (2025-10-26 08:55Z)**_
+
+## Inspiration
+
+## What it does
+
+## How we built it
+
+## Challenges we ran into
+
+## Accomplishments that we're proud of
+
+## What we learned
+
+## What's next for FocusAI
+
+
+write this in engaging way for my hackton about our plugin cause its so cool use emojis
+
+---
+
+_**Assistant (default)**_
+
+
+
+---
+
+I'll help you write an engaging hackathon description for FocusAI! Let me first explore the codebase to understand all the features we've built.
+
+
+---
+
+Tool use: **codebase_search**
+
+<details>
+                <summary>Searched codebase "What are the main features and functionality of FocusAI extension?" • **13** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `manifest.json` | L37 |
+| `README.md` | L17 |
+| `popup.js` | L62 |
+| `popup.html` | L54 |
+| `chatgpt-injector.js` | L134 |
+| `index.html` | L184-225 |
+| `background.js` | L2-55 |
+| `js/tasks.js` | L706 |
+| `index.html` | L83 |
+| `popup.html` | L52-89 |
+| `debug.html` | L133-181 |
+| `js/settings.js` | L129 |
+| `chatgpt-injector.js` | L42-134 |
+
+</details>
+
+---
+
+Tool use: **codebase_search**
+
+<details>
+                <summary>Searched codebase "What gamification features does FocusAI have for task completion?" • **1** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `js/gamification.js` | L379 |
+
+</details>
+
+---
+
+Tool use: **codebase_search**
+
+<details>
+                <summary>Searched codebase "What AI integration features does FocusAI have for task enhancement?" • **1** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `js/tasks.js` | L706 |
+
+</details>
+
+---
+
+Tool use: **read_file**
+
+Read file: js/tasks.js
+
+---
+
+Now I have a comprehensive understanding of FocusAI! Here's an engaging hackathon description:
+
+---
+
+# 🚀 FocusAI: The Ultimate Productivity Chrome Extension
+
+## 💡 Inspiration
+
+We were tired of juggling multiple productivity apps and losing focus in the chaos of modern work! 💻📱 Every developer knows the struggle: you have tasks scattered across sticky notes, reminders, and random text files. We wanted to create **one powerful extension** that combines task management, AI assistance, and gamification to make productivity actually fun! 🎯✨
+
+## 🎮 What it does
+
+**FocusAI** is your personal productivity command center! 🏆 It's not just another task manager - it's a complete workflow revolution:
+
+- **📋 Smart Task Management**: Organize tasks across Today, This Week, This Year, and Done tabs with drag-and-drop prioritization
+- **🤖 AI-Powered Task Enhancement**: Click the magical "AI✨" button next to any task to automatically enhance it and send it to ChatGPT, Gemini, or Claude with an optimized prompt
+- **🎯 Gamification Magic**: Build streaks, track daily progress with a beautiful progress bar, and celebrate achievements with confetti explosions! 🎉
+- **⏰ Pomodoro Timer**: Built-in timer with satisfying completion sounds to keep you focused
+- **🔊 Audio Feedback**: Explosion sounds when completing tasks, timer completion sounds, and celebration audio for that dopamine hit! 💥
+- **⚙️ Multi-AI Support**: Choose your favorite AI engine (ChatGPT, Gemini, Claude) in settings
+- **🎨 Beautiful UI**: Clean, distraction-free interface that actually makes you want to be productive
+
+## 🛠️ How we built it
+
+We built FocusAI as a **Chrome Extension using Manifest V3** with a modular architecture:
+
+- **Frontend**: Pure HTML/CSS/JavaScript with ES6 modules for clean separation of concerns
+- **Storage**: Chrome Storage API for persistent task and settings management
+- **AI Integration**: Content scripts that intelligently inject enhanced prompts into AI engines
+- **Audio System**: Web Audio API with custom MP3 files for satisfying sound effects
+- **Gamification Engine**: Custom streak tracking and progress calculation algorithms
+- **Cross-Tab Communication**: Chrome messaging API for seamless AI engine integration
+
+**Key Technical Achievements:**
+- 🎯 **Smart Prompt Injection**: Automatically detects and fills AI engine input fields across different platforms
+- 🔄 **Real-time Sync**: Tasks persist across browser sessions and sync instantly
+- 🎨 **Dynamic UI**: Responsive design that adapts to different task counts and states
+- 🔧 **Modular Architecture**: Clean separation between task management, gamification, and AI integration
+
+## 🚧 Challenges we ran into
+
+**The AI Integration Challenge** 🤖: Getting prompts to automatically inject into ChatGPT, Gemini, and Claude was like solving a puzzle! Each platform has different DOM structures and input methods. We had to create a robust content script that could handle ProseMirror editors, Quill editors, and various textarea implementations.
+
+**The Gamification Math** 📊: Calculating streaks and progress bars that actually motivate users was trickier than expected. We had to implement smart base-count tracking that only increases (never decreases) to prevent demotivation.
+
+**Cross-Platform Compatibility** 🌐: Making sure the extension works seamlessly across different AI platforms while maintaining security and performance required careful permission management and error handling.
+
+## 🏆 Accomplishments that we're proud of
+
+- **🎯 Zero-API AI Integration**: We achieved seamless AI integration without any API calls - just smart DOM manipulation!
+- **🎮 Psychology-Driven Gamification**: Our streak and progress system is designed based on behavioral psychology principles
+- **🔊 Immersive Audio Experience**: Custom sound effects that make completing tasks genuinely satisfying
+- **⚡ Lightning-Fast Performance**: Instant task loading and smooth animations even with hundreds of tasks
+- **🎨 Pixel-Perfect UI**: Every detail crafted for maximum user satisfaction and productivity
+
+## 📚 What we learned
+
+- **User Psychology Matters**: Small details like explosion sounds and confetti animations significantly boost user engagement
+- **Modular Architecture is King**: Breaking the extension into focused modules made development and debugging much easier
+- **AI Integration is Complex**: Each AI platform has unique quirks that require custom solutions
+- **Gamification Needs Balance**: Too much gamification can be distracting, but the right amount creates genuine motivation
+
+## 🚀 What's next for FocusAI
+
+**Phase 2 Features** 🔮:
+- **🧠 Smart Prompt Optimization**: Use our custom prompts.json database to automatically enhance tasks based on keywords and context
+- **📊 Advanced Analytics**: Detailed productivity insights and personalized recommendations
+- **🤝 Team Collaboration**: Share tasks and progress with team members
+- **🎯 Custom Goals**: Set personalized daily/weekly/monthly targets
+- **🔔 Smart Notifications**: Context-aware reminders based on your productivity patterns
+- **📱 Mobile Companion**: React Native app for on-the-go task management
+
+**The Vision** 🌟: We're building the **Netflix of Productivity** - an experience so engaging and effective that users actually look forward to managing their tasks!
+
+---
+
+*Ready to transform your productivity game? Install FocusAI and join the productivity revolution! 🚀✨*
+
+---
+
+_**User (2025-10-26 08:55Z)**_
+
+make it bit shorter
+
+---
+
+_**Assistant (default)**_
+
+Here's a shorter, punchier version:
+
+---
+
+# 🚀 FocusAI: The Ultimate Productivity Chrome Extension
+
+## 💡 Inspiration
+
+Tired of juggling multiple productivity apps? We built **FocusAI** - one powerful extension that combines task management, AI assistance, and gamification to make productivity actually fun! 🎯✨
+
+## 🎮 What it does
+
+**FocusAI** is your personal productivity command center! 🏆
+
+- **📋 Smart Task Management**: Organize tasks across Today, This Week, This Year, and Done tabs
+- **🤖 AI-Powered Enhancement**: Click "AI✨" to automatically enhance tasks and send them to ChatGPT, Gemini, or Claude
+- **🎯 Gamification Magic**: Build streaks, track progress, and celebrate with confetti explosions! 🎉
+- **⏰ Pomodoro Timer**: Built-in timer with satisfying completion sounds
+- **🔊 Audio Feedback**: Explosion sounds for task completion and celebration audio for that dopamine hit! 💥
+- **⚙️ Multi-AI Support**: Choose your favorite AI engine in settings
+
+## 🛠️ How we built it
+
+**Chrome Extension using Manifest V3** with modular architecture:
+- **Frontend**: Pure HTML/CSS/JavaScript with ES6 modules
+- **AI Integration**: Content scripts that intelligently inject prompts into AI engines
+- **Storage**: Chrome Storage API for persistent task management
+- **Audio System**: Custom MP3 files for satisfying sound effects
+- **Gamification Engine**: Custom streak tracking and progress algorithms
+
+## 🚧 Challenges we ran into
+
+**AI Integration** 🤖: Each platform (ChatGPT, Gemini, Claude) has different DOM structures. We created robust content scripts handling ProseMirror, Quill, and various textarea implementations.
+
+**Gamification Math** 📊: Implementing progress tracking that only increases (never decreases) to prevent demotivation.
+
+## 🏆 Accomplishments that we're proud of
+
+- **🎯 Zero-API AI Integration**: Seamless AI integration without any API calls!
+- **🎮 Psychology-Driven Gamification**: Streak system based on behavioral psychology
+- **🔊 Immersive Audio Experience**: Custom sound effects that make completing tasks satisfying
+- **⚡ Lightning-Fast Performance**: Instant loading with hundreds of tasks
+- **🎨 Pixel-Perfect UI**: Every detail crafted for maximum user satisfaction
+
+## 📚 What we learned
+
+- **User Psychology Matters**: Small details like explosion sounds significantly boost engagement
+- **Modular Architecture is King**: Focused modules made development much easier
+- **AI Integration is Complex**: Each platform requires custom solutions
+- **Gamification Needs Balance**: Right amount creates genuine motivation
+
+## 🚀 What's next for FocusAI
+
+**Phase 2 Features** 🔮:
+- **🧠 Smart Prompt Optimization**: Use our prompts.json database to auto-enhance tasks
+- **📊 Advanced Analytics**: Detailed productivity insights
+- **🤝 Team Collaboration**: Share tasks and progress
+- **🎯 Custom Goals**: Personalized daily/weekly targets
+- **📱 Mobile Companion**: React Native app for on-the-go management
+
+**The Vision** 🌟: Building the **Netflix of Productivity** - an experience so engaging users actually look forward to managing tasks!
+
+---
+
+*Ready to transform your productivity? Install FocusAI and join the revolution! 🚀✨*
+
+---
+
