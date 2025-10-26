@@ -38,12 +38,16 @@ export class TabManager {
     // Default tabs
     const defaultTabs = [
       { id: 'today', name: 'Today' },
-      { id: 'tomorrow', name: 'This Week' },
+      { id: 'thisweek', name: 'This Week' },
+      { id: 'thisyear', name: 'This Year' },
       { id: 'done', name: 'Done' }
     ];
 
-    // Custom tabs
-    const customTabObjects = customTabs.map((name, index) => ({
+    // Custom tabs (filter out duplicates of default tab names)
+    const defaultTabNames = defaultTabs.map(tab => tab.name);
+    const filteredCustomTabs = customTabs.filter(name => !defaultTabNames.includes(name));
+    
+    const customTabObjects = filteredCustomTabs.map((name, index) => ({
       id: `custom${index}`,
       name: name
     }));
@@ -129,7 +133,7 @@ export class TabManager {
   }
 
   async renameTab(tabId, currentName) {
-    if (tabId === 'today' || tabId === 'tomorrow') {
+    if (tabId === 'today' || tabId === 'thisweek' || tabId === 'thisyear' || tabId === 'done') {
       alert('Cannot rename default tabs');
       return;
     }
@@ -148,7 +152,7 @@ export class TabManager {
   }
 
   async deleteTab(tabId) {
-    if (tabId === 'today' || tabId === 'tomorrow') {
+    if (tabId === 'today' || tabId === 'thisweek' || tabId === 'thisyear' || tabId === 'done') {
       alert('Cannot delete default tabs');
       return;
     }

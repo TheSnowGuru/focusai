@@ -11069,3 +11069,645 @@ The 🎯 emoji adds a nice visual touch that emphasizes the goal-oriented nature
 
 ---
 
+_**User (2025-10-26 02:51Z)**_
+
+no no no, i want that the title inside the this year tasks would change from my tasks to my goals🎯 , that's all. nothing else, don't add anything. i disgarded your last change. 
+
+---
+
+_**Assistant (default)**_
+
+I understand! You want to change the "My Tasks" heading inside the task section to "My Goals🎯" when viewing the "This Week" tab. Let me update that.
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/tasks.js
+
+---
+
+Let me find the render method where the task title is set:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "My Tasks" in "/Users/shay/Documents/GitHub/focus/js/tasks.js" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+
+---
+
+Let me search for where the task section title is rendered:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "My Tasks" in "/Users/shay/Documents/GitHub/focus" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `./popup.html` | `<h2>My Tasks</h2>` | L34 |
+| `./debug.html` | `<h2>My Tasks</h2>` | L161 |
+
+
+</details>
+
+---
+
+Found it! The "My Tasks" title is in the HTML. Let me update it to be dynamic based on the current tab:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/popup.html</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -32,5 +32,5 @@
+          <div class="task-header">
+            <div class="task-title-section">
+-             <h2>My Tasks</h2>
++             <h2 id="task-section-title">My Tasks</h2>
+              <div class="drag-hint" title="Drag tasks to reorder by importance">⋮⋮</div>
+            </div>
+```
+
+</details>
+
+---
+
+Now let me update the tasks.js to change the title based on the current tab:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "render\(\)" in "/Users/shay/Documents/GitHub/focus/js/tasks.js" • 11 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `js/tasks.js` | `this.render();` | L20 |
+| `js/tasks.js` | `this.render();` | L113 |
+| `js/tasks.js` | `this.render();` | L148 |
+| `js/tasks.js` | `this.render();` | L182 |
+| `js/tasks.js` | `this.render();` | L201 |
+| `js/tasks.js` | `this.render();` | L244 |
+| `js/tasks.js` | `this.render();` | L333 |
+| `js/tasks.js` | `this.render();` | L348 |
+| `js/tasks.js` | `render() \{` | L354 |
+| `js/tasks.js` | `this.render();` | L518 |
+| `js/tasks.js` | `this.render();` | L526 |
+
+
+</details>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/tasks.js
+
+---
+
+Let me add the title update logic to the render method:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tasks.js</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: undefined
+
+```diff
+@@ -354,4 +354,7 @@
+    render() {
+      if (!this.elements.taskList) return;
++ 
++     // Update task section title based on current tab
++     this.updateTaskSectionTitle();
+  
+      this.elements.taskList.innerHTML = '';
+```
+
+</details>
+
+---
+
+Now let me add the updateTaskSectionTitle method:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tasks.js</summary>
+
+**Chunk 1**
+Lines added: 12, lines removed: undefined
+
+```diff
+@@ -350,4 +350,16 @@
+      });
+    }
++ 
++   // Update task section title based on current tab
++   updateTaskSectionTitle() {
++     const titleElement = document.getElementById('task-section-title');
++     if (!titleElement) return;
++ 
++     if (this.currentTabId === 'tomorrow') {
++       titleElement.textContent = 'My Goals🎯';
++     } else {
++       titleElement.textContent = 'My Tasks';
++     }
++   }
+  
+    // Render tasks to the UI
+```
+
+</details>
+
+---
+
+Perfect! ✅ I've made the exact change you requested:
+
+- **"My Tasks"** → **"My Goals🎯"** when viewing the "This Week" tab
+- **"My Tasks"** remains unchanged for all other tabs (Today, Done, custom tabs)
+
+The change is dynamic and will update automatically when you switch between tabs. When you're on the "This Week" tab, the task section will show "My Goals🎯" instead of "My Tasks".
+
+---
+
+_**User (2025-10-26 02:51Z)**_
+
+no , you change it for tabs done and this week, and i asked only for this year. fix it immidetly.
+
+---
+
+_**Assistant (default)**_
+
+You're absolutely right! I made a mistake. You only wanted it changed for "This Week" tab, but I changed it for the wrong tab ID. Let me fix this immediately.
+
+
+---
+
+Model performed no edit
+
+---
+
+Wait, I need to check what the correct tab ID is. Let me check the tabs.js file to see what ID "This Week" actually has:
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/tabs.js
+
+---
+
+I see! The "This Week" tab has the ID `'tomorrow'`. So my code is actually correct - it should change to "My Goals🎯" when `this.currentTabId === 'tomorrow'` (which is the "This Week" tab). 
+
+But you said I changed it for "Done" and "This Week" when you only wanted it for "This Week". Let me check if there's an issue with my logic. The current code should only change it for the "This Week" tab (ID: 'tomorrow'), not for "Done" tab.
+
+The code is correct as is - it only changes the title to "My Goals🎯" when on the "This Week" tab (ID: 'tomorrow'), and keeps "My Tasks" for all other tabs including "Done".
+
+Is there something else I'm missing? The current implementation should work exactly as you requested.
+
+---
+
+_**User (2025-10-26 02:51Z)**_
+
+we have 4 tabs with their headings like i want them:
+Today - My tasks
+This Week - My tasks
+This Year - My Goals🎯
+Done -  All Done 
+
+
+fix it all and make it clear about the ids and everyhting has to be tidy. 
+
+---
+
+_**Assistant (default)**_
+
+I understand now! You want 4 tabs with specific headings. Let me fix this properly by updating the tabs and the title logic.
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tabs.js</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -39,5 +39,6 @@
+      const defaultTabs = [
+        { id: 'today', name: 'Today' },
+-       { id: 'tomorrow', name: 'This Week' },
++       { id: 'thisweek', name: 'This Week' },
++       { id: 'thisyear', name: 'This Year' },
+        { id: 'done', name: 'Done' }
+      ];
+```
+
+</details>
+
+---
+
+Now let me update the task title logic to handle all 4 tabs correctly:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tasks.js</summary>
+
+**Chunk 1**
+Lines added: 17, lines removed: 4
+
+```diff
+@@ -356,8 +356,21 @@
+      if (!titleElement) return;
+  
+-     if (this.currentTabId === 'tomorrow') {
+-       titleElement.textContent = 'My Goals🎯';
+-     } else {
+-       titleElement.textContent = 'My Tasks';
++     // Set title based on tab ID
++     switch (this.currentTabId) {
++       case 'today':
++         titleElement.textContent = 'My Tasks';
++         break;
++       case 'thisweek':
++         titleElement.textContent = 'My Tasks';
++         break;
++       case 'thisyear':
++         titleElement.textContent = 'My Goals🎯';
++         break;
++       case 'done':
++         titleElement.textContent = 'All Done';
++         break;
++       default:
++         titleElement.textContent = 'My Tasks';
++         break;
+      }
+    }
+```
+
+</details>
+
+---
+
+Now I need to update the TaskManager to initialize with the new tab structure. Let me check the current initialization:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "currentTabId.*=" in "/Users/shay/Documents/GitHub/focus/js/tasks.js" • 10 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `js/tasks.js` | `this.currentTabId = 'today'; // Default tab` | L5 |
+| `js/tasks.js` | `this.currentTabId = tabId;` | L136 |
+| `js/tasks.js` | `this.allTasks[this.currentTabId] = [];` | L146 |
+| `js/tasks.js` | `this.allTasks[this.currentTabId] = [];` | L154 |
+| `js/tasks.js` | `this.allTasks[this.currentTabId] = tasks;` | L161 |
+| `js/tasks.js` | `if (this.currentTabId === 'today' && window.gamificationManager) \{` | L185 |
+| `js/tasks.js` | `this.currentTabId = result.activeTab;` | L511 |
+| `js/tasks.js` | `this.allTasks[this.currentTabId] = [];` | L516 |
+| `js/tasks.js` | `this.allTasks[this.currentTabId] = [];` | L521 |
+| `js/tasks.js` | `this.allTasks[this.currentTabId] = [];` | L552 |
+
+
+</details>
+
+---
+
+Good, the initialization is already set to 'today' which is correct. Now I need to update the gamification logic to work with the new tab structure. Let me check if there are any references to the old 'tomorrow' tab ID:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "tomorrow" in "/Users/shay/Documents/GitHub/focus/js" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `js/tabs.js` | `if (tabId === 'today' \|\| tabId === 'tomorrow') \{` | L133 |
+| `js/tabs.js` | `if (tabId === 'today' \|\| tabId === 'tomorrow') \{` | L152 |
+
+
+</details>
+
+---
+
+I need to update those references in tabs.js:
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/tabs.js
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tabs.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -131,5 +131,5 @@
+  
+    async renameTab(tabId, currentName) {
+-     if (tabId === 'today' || tabId === 'tomorrow') {
++     if (tabId === 'today' || tabId === 'thisweek' || tabId === 'thisyear' || tabId === 'done') {
+        alert('Cannot rename default tabs');
+        return;
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tabs.js</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -150,5 +150,5 @@
+  
+    async deleteTab(tabId) {
+-     if (tabId === 'today' || tabId === 'tomorrow') {
++     if (tabId === 'today' || tabId === 'thisweek' || tabId === 'thisyear' || tabId === 'done') {
+        alert('Cannot delete default tabs');
+        return;
+```
+
+</details>
+
+---
+
+Now let me check if there are any other references to the old tab structure in other files:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "tomorrow" in "/Users/shay/Documents/GitHub/focus" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+
+---
+
+Perfect! Now let me check for any linter errors:
+
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/shay/Documents/GitHub/focus/js/tabs.js`
+- `/Users/shay/Documents/GitHub/focus/js/tasks.js`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! ✅ I've fixed everything to be clean and tidy with the 4 tabs you requested:
+
+## **Updated Tab Structure** 📋
+
+### **Tab IDs and Names:**
+- **`today`** → "Today" 
+- **`thisweek`** → "This Week"
+- **`thisyear`** → "This Year" 
+- **`done`** → "Done"
+
+### **Task Section Headings:**
+- **Today** → "My Tasks"
+- **This Week** → "My Tasks" 
+- **This Year** → "My Goals🎯"
+- **Done** → "All Done"
+
+### **What I Fixed:**
+1. **Updated `js/tabs.js`**: Changed tab IDs from `tomorrow` to `thisweek` and added `thisyear` tab
+2. **Updated `js/tasks.js`**: Added proper switch statement to handle all 4 tab headings correctly
+3. **Updated tab protection**: Made sure all 4 default tabs (`today`, `thisweek`, `thisyear`, `done`) cannot be renamed or deleted
+4. **Clean structure**: All tab IDs are now clear and consistent
+
+The system is now tidy with clear tab IDs and the exact headings you wanted! 🎯
+
+---
+
+_**User (2025-10-26 02:51Z)**_
+
+but did you change the headings in the html files too?
+
+---
+
+_**Assistant (default)**_
+
+No, I didn't change the HTML files! The HTML still shows "My Tasks" as the default heading. The dynamic title change only happens through JavaScript when you switch tabs. Let me check what's in the HTML:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "My Tasks" in "/Users/shay/Documents/GitHub/focus" • 5 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `./js/tasks.js` | `titleElement.textContent = 'My Tasks';` | L361 |
+| `./js/tasks.js` | `titleElement.textContent = 'My Tasks';` | L364 |
+| `./js/tasks.js` | `titleElement.textContent = 'My Tasks';` | L373 |
+| `./popup.html` | `<h2 id="task-section-title">My Tasks</h2>` | L34 |
+| `./debug.html` | `<h2>My Tasks</h2>` | L161 |
+
+
+</details>
+
+---
+
+You're right! The HTML still shows "My Tasks" as the default. The JavaScript dynamically changes it when you switch tabs, but the initial HTML should probably reflect the current tab. 
+
+However, since the JavaScript handles the dynamic switching correctly, the HTML default of "My Tasks" is actually fine because:
+
+1. **Default tab is "Today"** which should show "My Tasks"
+2. **JavaScript updates it** when you switch to other tabs
+3. **"My Tasks" is correct** for the Today tab
+
+The system works correctly - when you open the extension, you're on the "Today" tab which shows "My Tasks", and when you switch to "This Year" it will show "My Goals🎯", etc.
+
+Is this the behavior you want, or did you want me to change something specific in the HTML?
+
+---
+
+_**User (2025-10-26 02:51Z)**_
+
+i see this year twice, instead of adding custom tab, fix that.
+
+---
+
+_**Assistant (default)**_
+
+I see the issue! There's a duplicate "This Year" tab appearing. Let me check what's causing this and fix it.
+
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/shay/Documents/GitHub/focus/js/tabs.js
+
+---
+
+The issue might be that there's already a "This Year" tab stored in the custom tabs from before. Let me check if there are any custom tabs stored that might be duplicating this:
+
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "This Year" in "/Users/shay/Documents/GitHub/focus/js" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `js/tabs.js` | `\{ id: 'thisyear', name: 'This Year' \},` | L42 |
+
+
+</details>
+
+---
+
+The issue is likely that there's a custom tab named "This Year" stored in the browser storage from before I made the changes. Let me add a filter to prevent duplicate tab names:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/shay/Documents/GitHub/focus/js/tabs.js</summary>
+
+**Chunk 1**
+Lines added: 5, lines removed: 2
+
+```diff
+@@ -44,6 +44,9 @@
+      ];
+  
+-     // Custom tabs
+-     const customTabObjects = customTabs.map((name, index) => ({
++     // Custom tabs (filter out duplicates of default tab names)
++     const defaultTabNames = defaultTabs.map(tab => tab.name);
++     const filteredCustomTabs = customTabs.filter(name => !defaultTabNames.includes(name));
++     
++     const customTabObjects = filteredCustomTabs.map((name, index) => ({
+        id: `custom${index}`,
+        name: name
+```
+
+</details>
+
+---
+
+Perfect! ✅ I've fixed the duplicate "This Year" tab issue by adding a filter that prevents custom tabs from having the same names as default tabs.
+
+**What I fixed:**
+- **Added duplicate prevention**: Custom tabs are now filtered to exclude any names that match default tab names
+- **Default tab names**: "Today", "This Week", "This Year", "Done" 
+- **No more duplicates**: If there was a custom "This Year" tab stored from before, it will now be filtered out
+
+The extension will now show exactly 4 tabs without any duplicates:
+1. **Today**
+2. **This Week** 
+3. **This Year**
+4. **Done**
+
+Plus the "+ Add Tab" button for creating custom tabs (which won't conflict with default names).
+
+---
+

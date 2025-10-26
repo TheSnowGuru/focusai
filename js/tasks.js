@@ -355,10 +355,23 @@ export class TaskManager {
     const titleElement = document.getElementById('task-section-title');
     if (!titleElement) return;
 
-    if (this.currentTabId === 'tomorrow') {
-      titleElement.textContent = 'My Goals🎯';
-    } else {
-      titleElement.textContent = 'My Tasks';
+    // Set title based on tab ID
+    switch (this.currentTabId) {
+      case 'today':
+        titleElement.textContent = 'My Tasks';
+        break;
+      case 'thisweek':
+        titleElement.textContent = 'My Tasks';
+        break;
+      case 'thisyear':
+        titleElement.textContent = 'My Goals🎯';
+        break;
+      case 'done':
+        titleElement.textContent = 'All Done';
+        break;
+      default:
+        titleElement.textContent = 'My Tasks';
+        break;
     }
   }
 
