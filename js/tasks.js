@@ -350,9 +350,24 @@ export class TaskManager {
     });
   }
 
+  // Update task section title based on current tab
+  updateTaskSectionTitle() {
+    const titleElement = document.getElementById('task-section-title');
+    if (!titleElement) return;
+
+    if (this.currentTabId === 'tomorrow') {
+      titleElement.textContent = 'My Goals🎯';
+    } else {
+      titleElement.textContent = 'My Tasks';
+    }
+  }
+
   // Render tasks to the UI
   render() {
     if (!this.elements.taskList) return;
+
+    // Update task section title based on current tab
+    this.updateTaskSectionTitle();
 
     this.elements.taskList.innerHTML = '';
 
